@@ -1,0 +1,54 @@
+# Terraform
+*.tfstate
+*.tfstate.backup
+.terraform/
+terraform.tfvars
+*.tfvars
+override.tf
+override.tf.json
+*.tfplan
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+env/
+venv/
+
+# Docker
+*.log
+docker-compose.override.yml
+
+# Helm
+charts/
+*.tgz
+
+# Ansible
+*.retry
+
+# Secrets - MOST IMPORTANT SECTION
+.env
+.env.*
+aws_credentials
+kubeconfig
+*.pem
+*.key
+*.cert
+credentials
+
+# Editor and IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs and temp files
+logs/
+*.log
+tmp/
+temp/
