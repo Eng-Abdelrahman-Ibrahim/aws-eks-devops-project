@@ -5,22 +5,29 @@ pipeline {
         DOCKER_COMPOSE_FILE = 'application/docker-compose.yml'
         DOCKER_IMAGE = 'abdelrahmandevops/devops-app:distroless'
     }
-    
-    stage('Checkout') {
+
+    stages {
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()  // wipe workspace before starting
+            }
+        }
+
+        stage('Checkout') {
             steps {
                 checkout([$class: 'GitSCM',
                     branches: [[name: 'main']],
                     userRemoteConfigs: [[
                         url: 'https://github.com/Eng-Abdelrahman-Ibrahim/aws-eks-devops-project.git',
                         credentialsId: 'Github_Access'
-                    ]]
+                    ]],
+                    extensions: [[$class: 'WipeWorkspace']] // extra safety
                 ])
             }
         }
 
         stage('Docker Login') {
             steps {
-                // Use Docker Hub credentials
                 withCredentials([usernamePassword(credentialsId: 'Docker_Access', 
                                                  usernameVariable: 'DOCKER_USER', 
                                                  passwordVariable: 'DOCKER_PASS')]) {
