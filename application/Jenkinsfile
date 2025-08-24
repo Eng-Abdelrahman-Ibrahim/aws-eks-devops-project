@@ -1,0 +1,73 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_IMAGE = "abdelrahmandevops/devops-app:distroless"
+        CONTAINER_NAME = "api-dashboard-test"
+        API_PORT = "8080"
+        BASE_URL = "http://localhost:${API_PORT}"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out source code...'
+                checkout scm
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                echo 'Building Docker image for Java app...'
+                sh '''
+                docker build -t $DOCKER_IMAGE .
+                '''
+            }
+        }
+
+        stage('Run Container') {
+            steps {
+                echo 'Starting container for testing...'
+                sh '''
+                docker rm -f $CONTAINER_NAME || true
+                docker run -d --name $CONTAINER_NAME -p $API_PORT:$API_PORT $DOCKER_IMAGE
+                echo "Waiting for Java app to start..."
+                sleep 20
+                '''
+            }
+        }
+
+        stage('Run API Tests') {
+            steps {
+                echo 'Running API tests against BASE_URL=$BASE_URL'
+                sh '''
+                pip install pytest requests
+                pytest tests/ --maxfail=1 --disable-warnings -q
+                '''
+            }
+        }
+
+        stage('Stop Container') {
+            steps {
+                echo 'Stopping and removing container...'
+                sh '''
+                docker stop $CONTAINER_NAME
+                docker rm $CONTAINER_NAME
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline executed successfully ✅'
+        }
+        failure {
+            echo 'Pipeline failed ❌'
+        }
+        always {
+            echo 'Cleaning up...'
+            sh 'docker rm -f $CONTAINER_NAME || true'
+        }
+    }
+}
