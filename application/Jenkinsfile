@@ -3,63 +3,71 @@ pipeline {
 
     environment {
         DOCKER_COMPOSE_FILE = 'docker-compose.yml'
+        DOCKER_IMAGE = 'abdelrahmandevops/devops-app:distroless'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                checkout scm
+                // Use GitHub PAT to checkout private repo
+                checkout([$class: 'GitSCM',
+                    branches: [[name: 'main']],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/Eng-Abdelrahman-Ibrahim/aws-eks-devops-project.git',
+                        credentialsId: 'Github_Access'  // replace with your Jenkins credential ID
+                    ]]
+                ])
+            }
+        }
+
+        stage('Docker Login') {
+            steps {
+                // Use Docker Hub credentials
+                withCredentials([usernamePassword(credentialsId: 'Docker_Access', 
+                                                 usernameVariable: 'DOCKER_USER', 
+                                                 passwordVariable: 'DOCKER_PASS')]) {
+                    sh 'docker login -u $DOCKER_USER -p $DOCKER_PASS'
+                }
             }
         }
 
         stage('Pull App Image') {
             steps {
-                script {
-                    sh 'docker pull abdelrahmandevops/devops-app:distroless'
-                }
+                sh "docker pull ${DOCKER_IMAGE}"
             }
         }
 
         stage('Start Services') {
             steps {
-                script {
-                    sh "docker-compose -f ${DOCKER_COMPOSE_FILE} up -d"
-                }
+                sh "docker-compose -f ${DOCKER_COMPOSE_FILE} up -d"
             }
         }
 
         stage('Wait for DB') {
             steps {
-                script {
-                    // Wait until PostgreSQL is healthy
-                    sh '''
-                    for i in {1..10}; do
-                      if [ "$(docker inspect -f '{{.State.Health.Status}}' mydb)" == "healthy" ]; then
-                        echo "Postgres is healthy!"
-                        exit 0
-                      fi
-                      echo "Waiting for Postgres..."
-                      sleep 5
-                    done
-                    exit 1
-                    '''
-                }
+                sh '''
+                for i in {1..10}; do
+                  if [ "$(docker inspect -f '{{.State.Health.Status}}' mydb)" == "healthy" ]; then
+                    echo "Postgres is healthy!"
+                    exit 0
+                  fi
+                  echo "Waiting for Postgres..."
+                  sleep 5
+                done
+                exit 1
+                '''
             }
         }
 
         stage('Run Tests') {
             steps {
-                script {
-                    sh 'pytest Tests/test_api_dashboard.py --maxfail=1 --disable-warnings -q'
-                }
+                sh 'pytest Tests/test_api_dashboard.py --maxfail=1 --disable-warnings -q'
             }
         }
 
         stage('Clean Up') {
             steps {
-                script {
-                    sh "docker-compose -f ${DOCKER_COMPOSE_FILE} down"
-                }
+                sh "docker-compose -f ${DOCKER_COMPOSE_FILE} down"
             }
         }
     }
