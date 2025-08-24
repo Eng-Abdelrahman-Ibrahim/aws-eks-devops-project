@@ -5,16 +5,14 @@ pipeline {
         DOCKER_COMPOSE_FILE = 'application/docker-compose.yml'
         DOCKER_IMAGE = 'abdelrahmandevops/devops-app:distroless'
     }
-
-    stages {
-        stage('Checkout') {
+    
+    stage('Checkout') {
             steps {
-                // Use GitHub PAT to checkout private repo
                 checkout([$class: 'GitSCM',
                     branches: [[name: 'main']],
                     userRemoteConfigs: [[
                         url: 'https://github.com/Eng-Abdelrahman-Ibrahim/aws-eks-devops-project.git',
-                        credentialsId: 'Github_Access'  // replace with your Jenkins credential ID
+                        credentialsId: 'Github_Access'
                     ]]
                 ])
             }
