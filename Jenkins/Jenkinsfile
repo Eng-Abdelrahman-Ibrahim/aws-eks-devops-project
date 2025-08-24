@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_COMPOSE_FILE = 'docker-compose.yml'
+        DOCKER_COMPOSE_FILE = 'application/docker-compose.yml'
         DOCKER_IMAGE = 'abdelrahmandevops/devops-app:distroless'
     }
 
@@ -61,7 +61,7 @@ pipeline {
 
         stage('Run Tests') {
             steps {
-                sh 'pytest Tests/test_api_dashboard.py --maxfail=1 --disable-warnings -q'
+                sh 'pytest application/Tests/test_api_dashboard.py --maxfail=1 --disable-warnings -q'
             }
         }
 
