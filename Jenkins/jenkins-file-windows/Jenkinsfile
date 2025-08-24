@@ -1,0 +1,82 @@
+pipeline {
+    agent any
+
+    environment {
+        DOCKER_COMPOSE_FILE = 'application\\docker-compose.yml'
+        DOCKER_IMAGE = 'abdelrahmandevops/devops-app:distroless'
+    }
+
+    stages {
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()  // wipe workspace before starting
+            }
+        }
+
+        stage('Checkout') {
+            steps {
+                checkout([$class: 'GitSCM',
+                    branches: [[name: 'main']],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/Eng-Abdelrahman-Ibrahim/aws-eks-devops-project.git',
+                        credentialsId: 'Github_Access'
+                    ]],
+                    extensions: [[$class: 'WipeWorkspace']]
+                ])
+            }
+        }
+
+        stage('Docker Login') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'Docker_Access',
+                                                 usernameVariable: 'DOCKER_USER',
+                                                 passwordVariable: 'DOCKER_PASS')]) {
+                    bat 'echo %DOCKER_PASS% | docker login -u %DOCKER_USER% --password-stdin'
+                }
+            }
+        }
+
+        stage('Pull App Image') {
+            steps {
+                bat "docker pull %DOCKER_IMAGE%"
+            }
+        }
+
+        stage('Start Services') {
+            steps {
+                bat "docker-compose -f %DOCKER_COMPOSE_FILE% up -d"
+            }
+        }
+
+        stage('Wait for DB') {
+            steps {
+                bat '''
+                @echo off
+                setlocal enabledelayedexpansion
+                for /l %%i in (1,1,10) do (
+                    for /f "tokens=*" %%s in ('docker inspect -f "{{.State.Health.Status}}" mydb') do set STATUS=%%s
+                    if "!STATUS!"=="healthy" (
+                        echo Postgres is healthy!
+                        exit /b 0
+                    )
+                    echo Waiting for Postgres...
+                    timeout /t 5 > nul
+                )
+                exit /b 1
+                '''
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                bat 'pytest application\\Tests\\test_api_dashboard.py --maxfail=1 --disable-warnings -q'
+            }
+        }
+
+        stage('Clean Up') {
+            steps {
+                bat "docker-compose -f %DOCKER_COMPOSE_FILE% down"
+            }
+        }
+    }
+}
