@@ -31,26 +31,26 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'Docker_Access', 
                                                  usernameVariable: 'DOCKER_USER', 
                                                  passwordVariable: 'DOCKER_PASS')]) {
-                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    bat 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
                 }
             }
         }
 
         stage('Pull App Image') {
             steps {
-                sh "docker pull ${DOCKER_IMAGE}"
+                bat "docker pull ${DOCKER_IMAGE}"
             }
         }
 
         stage('Start Services') {
             steps {
-                sh "docker-compose -f ${DOCKER_COMPOSE_FILE} up -d"
+                bat "docker-compose -f ${DOCKER_COMPOSE_FILE} up -d"
             }
         }
 
         stage('Wait for DB') {
             steps {
-                sh '''
+                bat '''
                 for i in {1..10}; do
                   if [ "$(docker inspect -f '{{.State.Health.Status}}' mydb)" == "healthy" ]; then
                     echo "Postgres is healthy!"
@@ -66,13 +66,13 @@ pipeline {
 
         stage('Run Tests') {
             steps {
-                sh 'pytest application/Tests/test_api_dashboard.py --maxfail=1 --disable-warnings -q'
+                bat 'pytest application/Tests/test_api_dashboard.py --maxfail=1 --disable-warnings -q'
             }
         }
 
         stage('Clean Up') {
             steps {
-                sh "docker-compose -f ${DOCKER_COMPOSE_FILE} down"
+                bat "docker-compose -f ${DOCKER_COMPOSE_FILE} down"
             }
         }
     }
