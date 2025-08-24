@@ -25,20 +25,15 @@ pipeline {
                 ])
             }
         }
-
-        stage('Docker Login') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'Docker_Access', 
-                                                 usernameVariable: 'DOCKER_USER', 
-                                                 passwordVariable: 'DOCKER_PASS')]) {
-                    sh 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
-                }
-            }
-        }
-
         stage('Pull App Image') {
             steps {
-                sh "docker pull ${DOCKER_IMAGE}"
+                withCredentials([usernamePassword(credentialsId: 'Docker_Access', 
+                                         usernameVariable: 'DOCKER_USER', 
+                                         passwordVariable: 'DOCKER_PASS')]) {
+                    sh '''
+                echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
+                docker pull abdelrahmandevops/devops-app:distroless
+                    '''
             }
         }
 
