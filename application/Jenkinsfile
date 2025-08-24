@@ -2,72 +2,65 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "abdelrahmandevops/devops-app:distroless"
-        CONTAINER_NAME = "api-dashboard-test"
-        API_PORT = "8080"
-        BASE_URL = "http://localhost:${API_PORT}"
+        DOCKER_COMPOSE_FILE = 'docker-compose.yml'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                echo 'Checking out source code...'
                 checkout scm
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Pull App Image') {
             steps {
-                echo 'Building Docker image for Java app...'
-                sh '''
-                docker build -t $DOCKER_IMAGE .
-                '''
+                script {
+                    sh 'docker pull abdelrahmandevops/devops-app:distroless'
+                }
             }
         }
 
-        stage('Run Container') {
+        stage('Start Services') {
             steps {
-                echo 'Starting container for testing...'
-                sh '''
-                docker rm -f $CONTAINER_NAME || true
-                docker run -d --name $CONTAINER_NAME -p $API_PORT:$API_PORT $DOCKER_IMAGE
-                echo "Waiting for Java app to start..."
-                sleep 20
-                '''
+                script {
+                    sh "docker-compose -f ${DOCKER_COMPOSE_FILE} up -d"
+                }
             }
         }
 
-        stage('Run API Tests') {
+        stage('Wait for DB') {
             steps {
-                echo 'Running API tests against BASE_URL=$BASE_URL'
-                sh '''
-                pip install pytest requests
-                pytest tests/ --maxfail=1 --disable-warnings -q
-                '''
+                script {
+                    // Wait until PostgreSQL is healthy
+                    sh '''
+                    for i in {1..10}; do
+                      if [ "$(docker inspect -f '{{.State.Health.Status}}' mydb)" == "healthy" ]; then
+                        echo "Postgres is healthy!"
+                        exit 0
+                      fi
+                      echo "Waiting for Postgres..."
+                      sleep 5
+                    done
+                    exit 1
+                    '''
+                }
             }
         }
 
-        stage('Stop Container') {
+        stage('Run Tests') {
             steps {
-                echo 'Stopping and removing container...'
-                sh '''
-                docker stop $CONTAINER_NAME
-                docker rm $CONTAINER_NAME
-                '''
+                script {
+                    sh 'pytest Tests/test_api_dashboard.py --maxfail=1 --disable-warnings -q'
+                }
             }
         }
-    }
 
-    post {
-        success {
-            echo 'Pipeline executed successfully ✅'
-        }
-        failure {
-            echo 'Pipeline failed ❌'
-        }
-        always {
-            echo 'Cleaning up...'
-            sh 'docker rm -f $CONTAINER_NAME || true'
+        stage('Clean Up') {
+            steps {
+                script {
+                    sh "docker-compose -f ${DOCKER_COMPOSE_FILE} down"
+                }
+            }
         }
     }
 }

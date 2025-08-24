@@ -16,12 +16,13 @@ def wait_for_app(url, retries=10, delay=3):
     return False
 
 def test_health_endpoint():
-    """Verify /health endpoint"""
-    assert wait_for_app(f"{BASE_URL}/health"), "App did not become ready in time"
-    response = requests.get(f"{BASE_URL}/health")
+    """Verify /health endpoint (or actuator health)"""
+    assert wait_for_app(f"{BASE_URL}/actuator/health"), "App did not become ready in time"
+    response = requests.get(f"{BASE_URL}/actuator/health")
     assert response.status_code == 200
     assert "status" in response.json()
-    assert response.json()["status"].lower() in ["ok", "healthy"]
+    assert response.json()["status"].upper() in ["UP", "OK", "HEALTHY"]
+
 
 def test_metrics_endpoint():
     """Verify /metrics returns expected fields"""
