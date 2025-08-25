@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_COMPOSE_FILE = 'application\\compose.yml'
+        DOCKER_COMPOSE_FILE = 'application\\compose.yaml'
         DOCKER_IMAGE = 'abdelrahmandevops/devops-app:distroless'
     }
 
