@@ -4,7 +4,8 @@ pipeline {
     environment {
         DOCKER_COMPOSE_FILE = 'application\\compose.yaml'
         DOCKER_IMAGE = 'abdelrahmandevops/devops-app:distroless'
-        PYTHON_DIR = 'C:\\Python39'  // Adjust based on what gets installed
+        PYTHON_PATH = 'C:\\Python313\\python.exe'
+        VENV_PATH = 'venv'
     }
 
     stages {
@@ -28,53 +29,53 @@ pipeline {
         }
 
         stage('Install Python if Missing') {
-    steps {
-        script {
-            // Check if Python is already accessible
-            def pythonAvailable = bat(script: 'python --version 2>nul', returnStatus: true) == 0
-            def pytestAvailable = bat(script: 'python -m pytest --version 2>nul', returnStatus: true) == 0
-            
-            if (!pythonAvailable || !pytestAvailable) {
-                echo "Python and/or pytest not found. Installing..."
-                
-                // Install Chocolatey if not present
-                def chocoInstalled = bat(script: 'where choco 2>nul', returnStatus: true) == 0
-                if (!chocoInstalled) {
-                    bat '''
-                        @echo off
-                        echo Installing Chocolatey...
-                        Set-ExecutionPolicy Bypass -Scope Process -Force
-                        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-                        iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-                    '''
+            steps {
+                script {
+                    def pythonAvailable = bat(script: 'python --version 2>nul', returnStatus: true) == 0
+                    if (!pythonAvailable) {
+                        echo "Python not found. Installing via Chocolatey..."
+                        def chocoInstalled = bat(script: 'where choco 2>nul', returnStatus: true) == 0
+                        if (!chocoInstalled) {
+                            bat '''
+                                @echo off
+                                echo Installing Chocolatey...
+                                Set-ExecutionPolicy Bypass -Scope Process -Force
+                                [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+                                iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+                            '''
+                        }
+                        bat '''
+                            @echo off
+                            echo Installing Python...
+                            choco install python -y --no-progress
+                            call refreshenv
+                        '''
+                    } else {
+                        echo "Python already installed"
+                    }
                 }
-                
-                // Install Python and pytest with explicit paths
-                bat '''
-                    @echo off
-                    echo Installing Python...
-                    choco install python -y --no-progress
-                    
-                    echo Refreshing environment variables...
-                    call refreshenv
-                    
-                    echo Checking Python installation...
-                    where python || echo "Python not in PATH"
-                    where pip || echo "Pip not in PATH"
-                    
-                    echo Using explicit Python path...
-                    "C:\\Python313\\python.exe" --version
-                    "C:\\Python313\\Scripts\\pip.exe" install pytest
-                    
-                    echo Verification with explicit paths:
-                    "C:\\Python313\\python.exe" -m pytest --version
-                '''
-            } else {
-                echo "Python and pytest are already installed and accessible"
             }
         }
-    }
-}
+
+        stage('Setup Virtual Environment & Install Dependencies') {
+            steps {
+                bat """
+                    @echo off
+                    echo Creating virtual environment...
+                    "%PYTHON_PATH%" -m venv %VENV_PATH%
+                    
+                    echo Activating virtual environment and installing requirements...
+                    call %VENV_PATH%\\Scripts\\activate
+                    pip install --upgrade pip
+                    if exist application\\requirements.txt (
+                        pip install -r application\\requirements.txt
+                    ) else (
+                        pip install requests pytest
+                    )
+                    deactivate
+                """
+            }
+        }
 
         stage('Docker Login') {
             steps {
@@ -122,15 +123,15 @@ pipeline {
 
         stage('Run Tests') {
             steps {
-                bat '''
+                bat """
                     @echo off
-                    echo Running tests with explicit Python path...
-                    "C:\\Python313\\python.exe" -m pytest application\\Tests\\test_api_dashboard.py --maxfail=1 --disable-warnings -q
-                    if errorlevel 1 (
-                        echo Tests failed with error code !errorlevel!
-                        exit /b !errorlevel!
-                    )
-                     '''
+                    echo Running tests in virtual environment...
+                    call %VENV_PATH%\\Scripts\\activate
+                    python -m pytest application\\Tests\\test_api_dashboard.py --maxfail=1 --disable-warnings -q
+                    set RESULT=%ERRORLEVEL%
+                    deactivate
+                    exit /b %RESULT%
+                """
             }
         }
 
