@@ -124,13 +124,13 @@ pipeline {
             steps {
                 bat '''
                     @echo off
-                    echo Running tests with Python...
-                    python -m pytest application\\Tests\\test_api_dashboard.py --maxfail=1 --disable-warnings -q
+                    echo Running tests with explicit Python path...
+                    "C:\\Python313\\python.exe" -m pytest application\\Tests\\test_api_dashboard.py --maxfail=1 --disable-warnings -q
                     if errorlevel 1 (
                         echo Tests failed with error code !errorlevel!
                         exit /b !errorlevel!
                     )
-                '''
+                     '''
             }
         }
 
