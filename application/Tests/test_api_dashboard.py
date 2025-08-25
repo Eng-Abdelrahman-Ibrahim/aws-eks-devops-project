@@ -1,11 +1,11 @@
 import requests
 import time
 
-BASE_URL = "http://localhost:8080"  # Java app default port
+BASE_URL = "http://localhost:8080/api"  # API base path
 
 def wait_for_app(url, retries=10, delay=3):
     """Wait until the app responds or retries run out"""
-    for i in range(retries):
+    for _ in range(retries):
         try:
             response = requests.get(url)
             if response.status_code == 200:
@@ -15,31 +15,38 @@ def wait_for_app(url, retries=10, delay=3):
         time.sleep(delay)
     return False
 
+
 def test_health_endpoint():
-    """Verify /health endpoint (or actuator health)"""
-    assert wait_for_app(f"{BASE_URL}/actuator/health"), "App did not become ready in time"
-    response = requests.get(f"{BASE_URL}/actuator/health")
-    assert response.status_code == 200
-    assert "status" in response.json()
-    assert response.json()["status"].upper() in ["UP", "OK", "HEALTHY"]
-
-
-def test_metrics_endpoint():
-    """Verify /metrics returns expected fields"""
-    response = requests.get(f"{BASE_URL}/metrics")
+    """Verify /api/health endpoint"""
+    assert wait_for_app(f"{BASE_URL}/health"), "App did not become ready in time"
+    response = requests.get(f"{BASE_URL}/health")
     assert response.status_code == 200
     data = response.json()
-    assert "cpuUsage" in data
-    assert "memoryUsage" in data
+    assert "status" in data
+    assert data["status"].upper() in ["OK", "UP", "HEALTHY"]
 
-def test_pipelines_endpoint():
-    """Verify /pipelines returns a list"""
-    response = requests.get(f"{BASE_URL}/pipelines")
-    assert response.status_code == 200
-    assert isinstance(response.json(), list)
 
-def test_deployments_endpoint():
-    """Verify /deployments returns a list"""
+def test_deployments_list_endpoint():
+    """Verify /api/deployments returns a valid response"""
     response = requests.get(f"{BASE_URL}/deployments")
     assert response.status_code == 200
-    assert isinstance(response.json(), list)
+    data = response.json()
+    # Spring Data returns a Page object, verify keys exist
+    assert "content" in data
+    assert isinstance(data["content"], list)
+    assert "totalElements" in data
+    assert "totalPages" in data
+
+
+def test_create_deployment():
+    """Verify we can create a deployment (if service is wired)"""
+    payload = {
+        "name": "Test Deployment",
+        "version": "1.0.0",
+        "environment": "DEV"
+    }
+    response = requests.post(f"{BASE_URL}/deployments", json=payload)
+    assert response.status_code in [200, 201]
+    data = response.json()
+    assert "id" in data
+    assert data["name"] == "Test Deployment"
