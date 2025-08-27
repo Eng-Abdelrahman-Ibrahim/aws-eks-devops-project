@@ -17,7 +17,10 @@ services:
       retries: 5
 
   server:
-    image: abdelrahmandevops/devops-app:distroless
+    image: abdelrahmandevops/devops-app:latest
+    container_name: app-server
+    build:
+      context: .
     ports:
       - "8080:8080"
     environment:
@@ -28,6 +31,20 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  test:
+    image: python:3.13-slim
+    container_name: app-tests
+    depends_on:
+      - server
+    working_dir: /tests
+    volumes:
+      - ./tests:/tests
+    command: >
+      sh -c "
+        pip install --no-cache-dir -r requirements.txt &&
+        pytest test_api_dashboard.py --maxfail=1 --disable-warnings -q
+      "
 
 volumes:
   db-data:

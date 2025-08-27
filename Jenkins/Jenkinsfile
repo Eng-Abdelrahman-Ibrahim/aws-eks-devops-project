@@ -2,18 +2,18 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_COMPOSE_FILE = 'application/docker-compose.yml'
-        DOCKER_IMAGE = 'abdelrahmandevops/devops-app:distroless'
+        DOCKER_COMPOSE_FILE = '../application/docker-compose.yaml'
+        DOCKER_IMAGE = 'abdelrahmandevops/devops-app:latest'
     }
 
     stages {
         stage('Clean Workspace') {
             steps {
-                cleanWs()  // wipe workspace before starting
+                cleanWs()
             }
         }
 
-        stage('Checkout') {
+        stage('Checkout Code') {
             steps {
                 checkout([$class: 'GitSCM',
                     branches: [[name: 'main']],
@@ -21,59 +21,73 @@ pipeline {
                         url: 'https://github.com/Eng-Abdelrahman-Ibrahim/aws-eks-devops-project.git',
                         credentialsId: 'Github_Access'
                     ]],
-                    extensions: [[$class: 'WipeWorkspace']] // extra safety
+                    extensions: [[$class: 'WipeWorkspace']]
                 ])
             }
         }
 
         stage('Docker Login') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'Docker_Access', 
-                                                 usernameVariable: 'DOCKER_USER', 
+                withCredentials([usernamePassword(credentialsId: 'Docker_Access',
+                                                 usernameVariable: 'DOCKER_USER',
                                                  passwordVariable: 'DOCKER_PASS')]) {
-                    bat 'echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin'
+                    sh '''
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                    '''
                 }
             }
         }
 
-        stage('Pull App Image') {
+        stage('Build Docker Image') {
             steps {
-                bat "docker pull ${DOCKER_IMAGE}"
+                sh '''
+                    echo "Building Docker image from application directory..."
+                    docker build -t ${DOCKER_IMAGE} ../application
+                '''
             }
         }
 
         stage('Start Services') {
             steps {
-                bat "docker-compose -f ${DOCKER_COMPOSE_FILE} up -d"
-            }
-        }
-
-        stage('Wait for DB') {
-            steps {
-                bat '''
-                for i in {1..10}; do
-                  if [ "$(docker inspect -f '{{.State.Health.Status}}' mydb)" == "healthy" ]; then
-                    echo "Postgres is healthy!"
-                    exit 0
-                  fi
-                  echo "Waiting for Postgres..."
-                  sleep 5
-                done
-                exit 1
+                sh '''
+                    echo "Starting PostgreSQL and app containers..."
+                    docker-compose -f ${DOCKER_COMPOSE_FILE} up -d db server
                 '''
             }
         }
 
-        stage('Run Tests') {
+        stage('Run API Tests') {
             steps {
-                bat 'pytest application/Tests/test_api_dashboard.py --maxfail=1 --disable-warnings -q'
+                sh '''
+                    echo "Running API tests inside Python container..."
+                    docker-compose -f ${DOCKER_COMPOSE_FILE} run --rm test
+                '''
             }
         }
 
-        stage('Clean Up') {
+        stage('Push Docker Image') {
             steps {
-                bat "docker-compose -f ${DOCKER_COMPOSE_FILE} down"
+                sh '''
+                    echo "Pushing Docker image to Docker Hub..."
+                    docker push ${DOCKER_IMAGE}
+                '''
             }
+        }
+
+        stage('Cleanup') {
+            steps {
+                sh '''
+                    echo "Stopping and removing containers..."
+                    docker-compose -f ${DOCKER_COMPOSE_FILE} down
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Pipeline completed. Cleaning Docker resources..."
+            sh 'docker-compose -f ${DOCKER_COMPOSE_FILE} down || true'
         }
     }
 }
