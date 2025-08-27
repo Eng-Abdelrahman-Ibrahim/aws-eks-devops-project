@@ -42,7 +42,7 @@ pipeline {
             steps {
                 sh '''
                     echo "Building Docker image from application directory..."
-                    docker build -t ${DOCKER_IMAGE} ../application
+                    docker build -t ${DOCKER_IMAGE} ./application
                 '''
             }
         }
