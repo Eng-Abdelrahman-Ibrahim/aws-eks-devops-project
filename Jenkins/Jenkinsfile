@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_COMPOSE_FILE = '../application/docker-compose.yaml'
+        DOCKER_COMPOSE_FILE = './application/docker-compose.yaml'
         DOCKER_IMAGE = 'abdelrahmandevops/devops-app:latest'
     }
 
@@ -20,8 +20,7 @@ pipeline {
                     userRemoteConfigs: [[
                         url: 'https://github.com/Eng-Abdelrahman-Ibrahim/aws-eks-devops-project.git',
                         credentialsId: 'Github_Access'
-                    ]],
-                    extensions: [[$class: 'WipeWorkspace']]
+                    ]]
                 ])
             }
         }
@@ -31,9 +30,7 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'Docker_Access',
                                                  usernameVariable: 'DOCKER_USER',
                                                  passwordVariable: 'DOCKER_PASS')]) {
-                    sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                    '''
+                    sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
                 }
             }
         }
@@ -50,8 +47,8 @@ pipeline {
         stage('Start Services') {
             steps {
                 sh '''
-                    echo "Starting PostgreSQL and app containers..."
-                    docker-compose -f ${DOCKER_COMPOSE_FILE} up -d db server
+                    echo "Starting services..."
+                    docker-compose -f ${DOCKER_COMPOSE_FILE} up -d
                 '''
             }
         }
@@ -59,7 +56,7 @@ pipeline {
         stage('Run API Tests') {
             steps {
                 sh '''
-                    echo "Running API tests inside Python container..."
+                    echo "Running API tests..."
                     docker-compose -f ${DOCKER_COMPOSE_FILE} run --rm test
                 '''
             }
@@ -68,7 +65,7 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 sh '''
-                    echo "Pushing Docker image to Docker Hub..."
+                    echo "Pushing Docker image..."
                     docker push ${DOCKER_IMAGE}
                 '''
             }
@@ -76,17 +73,14 @@ pipeline {
 
         stage('Cleanup') {
             steps {
-                sh '''
-                    echo "Stopping and removing containers..."
-                    docker-compose -f ${DOCKER_COMPOSE_FILE} down
-                '''
+                sh 'docker-compose -f ${DOCKER_COMPOSE_FILE} down'
             }
         }
     }
 
     post {
         always {
-            echo "Pipeline completed. Cleaning Docker resources..."
+            echo "Pipeline completed. Cleaning up Docker resources..."
             sh 'docker-compose -f ${DOCKER_COMPOSE_FILE} down || true'
         }
     }
