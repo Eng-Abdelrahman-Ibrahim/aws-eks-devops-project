@@ -5,7 +5,7 @@ pipeline {
         DOCKER_COMPOSE_FILE = './application/docker-compose.yaml'
         BACKEND_IMAGE = 'abdelrahmandevops/devops-app:latest'
         FRONTEND_IMAGE = 'abdelrahmandevops/devops-frontend:latest'
-        DASHBOARD_API = 'http://host.docker.internal:8080/api/deployments'
+        DASHBOARD_API = 'http://host.docker.internal:8080/api/deployments' //API
         DOCKER_HOST = 'unix:///var/run/docker.sock'
     }
 
