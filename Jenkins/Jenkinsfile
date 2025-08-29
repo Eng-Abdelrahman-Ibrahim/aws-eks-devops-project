@@ -5,7 +5,7 @@ pipeline {
         DOCKER_COMPOSE_FILE = './application/docker-compose.yaml'
         BACKEND_IMAGE = 'abdelrahmandevops/devops-app:latest'
         FRONTEND_IMAGE = 'abdelrahmandevops/devops-frontend:latest'
-        API_URL = 'http://localhost:8080/api/deployments' // Change to your backend API URL
+        API_URL = 'http://localhost:8080/api/deployments' // API
     }
 
     stages {
