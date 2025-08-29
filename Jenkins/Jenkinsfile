@@ -116,9 +116,37 @@ pipeline {
     }
 
     post {
-        always {
-            echo "Pipeline completed. Cleaning up Docker resources..."
-            sh 'docker-compose -f ${DOCKER_COMPOSE_FILE} down || true'
+    always {
+        echo "Pipeline completed. Notifying dashboard..."
+        script {
+            def headers = [:]
+            if (env.DASHBOARD_TOKEN) {
+                headers['Authorization'] = "Bearer ${env.DASHBOARD_TOKEN}"
+            }
+            headers['Content-Type'] = 'application/json'
+
+            def payload = """{
+                "ref": "refs/heads/main",
+                "status": "${currentBuild.currentResult}"
+            }"""
+
+            try {
+                httpRequest(
+                    httpMode: 'POST',
+                    url: env.DASHBOARD_API,
+                    customHeaders: headers.collect { k, v -> [name: k, value: v] },
+                    requestBody: payload,
+                    contentType: 'APPLICATION_JSON',
+                    validResponseCodes: '100:399'
+                )
+                echo "Dashboard notified successfully."
+            } catch (e) {
+                echo "Failed to notify dashboard: ${e.getMessage()}"
+            }
         }
+
+        echo "Cleaning up Docker resources..."
+        sh 'docker-compose -f ${DOCKER_COMPOSE_FILE} down || true'
     }
+ }
 }
