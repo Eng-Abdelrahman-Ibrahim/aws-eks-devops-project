@@ -5,7 +5,7 @@ pipeline {
         DOCKER_COMPOSE_FILE = './application/docker-compose.yaml'
         BACKEND_IMAGE = 'abdelrahmandevops/devops-app:latest'
         FRONTEND_IMAGE = 'abdelrahmandevops/devops-frontend:latest'
-        API_URL = 'http://localhost:8080/api/deployments' // API
+        DASHBOARD_API = 'http://host.docker.internal:8080/api/deployments'
     }
 
     stages {
@@ -71,6 +71,32 @@ pipeline {
             }
         }
 
+        stage('Notify Dashboard') {
+            steps {
+                script {
+                    def headers = [:]
+                    if (env.DASHBOARD_TOKEN) {
+                        headers['Authorization'] = "Bearer ${env.DASHBOARD_TOKEN}"
+                    }
+                    headers['Content-Type'] = 'application/json'
+                    
+                    def payload = """{
+                        "ref": "refs/heads/main",
+                        "status": "${currentBuild.currentResult}"
+                    }"""
+                    
+                    httpRequest(
+                        httpMode: 'POST',
+                        url: env.DASHBOARD_API,
+                        customHeaders: headers.collect { k, v -> [name: k, value: v] },
+                        requestBody: payload,
+                        contentType: 'APPLICATION_JSON',
+                        validResponseCodes: '100:399'
+                    )
+                }
+            }
+        }
+
         stage('Push Docker Images') {
             steps {
                 sh '''
@@ -90,40 +116,6 @@ pipeline {
     }
 
     post {
-        success {
-            echo "Build succeeded. Sending success deployment to API..."
-            script {
-                def payload = [
-                    version: "1.0.${BUILD_NUMBER}",
-                    environment: "PROD",
-                    success: true,
-                    notes: "Jenkins build #${BUILD_NUMBER} succeeded"
-                ]
-                httpRequest acceptType: 'APPLICATION_JSON',
-                            contentType: 'APPLICATION_JSON',
-                            httpMode: 'POST',
-                            requestBody: groovy.json.JsonOutput.toJson(payload),
-                            url: "${API_URL}"
-            }
-        }
-
-        failure {
-            echo "Build failed. Sending failure deployment to API..."
-            script {
-                def payload = [
-                    version: "1.0.${BUILD_NUMBER}",
-                    environment: "PROD",
-                    success: false,
-                    notes: "Jenkins build #${BUILD_NUMBER} failed"
-                ]
-                httpRequest acceptType: 'APPLICATION_JSON',
-                            contentType: 'APPLICATION_JSON',
-                            httpMode: 'POST',
-                            requestBody: groovy.json.JsonOutput.toJson(payload),
-                            url: "${API_URL}"
-            }
-        }
-
         always {
             echo "Pipeline completed. Cleaning up Docker resources..."
             sh 'docker-compose -f ${DOCKER_COMPOSE_FILE} down || true'
