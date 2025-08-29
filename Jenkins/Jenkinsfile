@@ -6,6 +6,7 @@ pipeline {
         BACKEND_IMAGE = 'abdelrahmandevops/devops-app:latest'
         FRONTEND_IMAGE = 'abdelrahmandevops/devops-frontend:latest'
         DASHBOARD_API = 'http://host.docker.internal:8080/api/deployments'
+        DOCKER_HOST = 'unix:///var/run/docker.sock'
     }
 
     stages {
