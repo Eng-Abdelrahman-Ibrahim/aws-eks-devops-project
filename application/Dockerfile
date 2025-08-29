@@ -28,5 +28,8 @@ USER nonroot:nonroot
 # Copy the jar from build stage
 COPY --from=build /app/target/*.jar /app/app.jar
 
+# Expose backend port
+EXPOSE 8080
+
 # Run the app
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

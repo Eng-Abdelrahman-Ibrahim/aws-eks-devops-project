@@ -3,14 +3,14 @@ pipeline {
 
     environment {
         DOCKER_COMPOSE_FILE = './application/docker-compose.yaml'
-        DOCKER_IMAGE = 'abdelrahmandevops/devops-app:latest'
+        BACKEND_IMAGE = 'abdelrahmandevops/devops-app:latest'
+        FRONTEND_IMAGE = 'abdelrahmandevops/devops-frontend:latest'
+        API_URL = 'http://localhost:8080/api/deployments' // Change to your backend API URL
     }
 
     stages {
         stage('Clean Workspace') {
-            steps {
-                cleanWs()
-            }
+            steps { cleanWs() }
         }
 
         stage('Checkout Code') {
@@ -35,11 +35,20 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Build Backend Image') {
             steps {
                 sh '''
-                    echo "Building Docker image from application directory..."
-                    docker build -t ${DOCKER_IMAGE} ./application
+                    echo "Building backend Docker image..."
+                    docker build -t ${BACKEND_IMAGE} ./application
+                '''
+            }
+        }
+
+        stage('Build Frontend Image') {
+            steps {
+                sh '''
+                    echo "Building frontend Docker image..."
+                    docker build -t ${FRONTEND_IMAGE} ./application/frontend
                 '''
             }
         }
@@ -47,7 +56,7 @@ pipeline {
         stage('Start Services') {
             steps {
                 sh '''
-                    echo "Starting services..."
+                    echo "Starting all services..."
                     docker-compose -f ${DOCKER_COMPOSE_FILE} up -d
                 '''
             }
@@ -56,17 +65,19 @@ pipeline {
         stage('Run API Tests') {
             steps {
                 sh '''
-                    echo "Running API tests..."
+                    echo "Running backend API tests..."
                     docker-compose -f ${DOCKER_COMPOSE_FILE} run --rm test
                 '''
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Push Docker Images') {
             steps {
                 sh '''
-                    echo "Pushing Docker image..."
-                    docker push ${DOCKER_IMAGE}
+                    echo "Pushing backend image..."
+                    docker push ${BACKEND_IMAGE}
+                    echo "Pushing frontend image..."
+                    docker push ${FRONTEND_IMAGE}
                 '''
             }
         }
@@ -79,6 +90,40 @@ pipeline {
     }
 
     post {
+        success {
+            echo "Build succeeded. Sending success deployment to API..."
+            script {
+                def payload = [
+                    version: "1.0.${BUILD_NUMBER}",
+                    environment: "PROD",
+                    success: true,
+                    notes: "Jenkins build #${BUILD_NUMBER} succeeded"
+                ]
+                httpRequest acceptType: 'APPLICATION_JSON',
+                            contentType: 'APPLICATION_JSON',
+                            httpMode: 'POST',
+                            requestBody: groovy.json.JsonOutput.toJson(payload),
+                            url: "${API_URL}"
+            }
+        }
+
+        failure {
+            echo "Build failed. Sending failure deployment to API..."
+            script {
+                def payload = [
+                    version: "1.0.${BUILD_NUMBER}",
+                    environment: "PROD",
+                    success: false,
+                    notes: "Jenkins build #${BUILD_NUMBER} failed"
+                ]
+                httpRequest acceptType: 'APPLICATION_JSON',
+                            contentType: 'APPLICATION_JSON',
+                            httpMode: 'POST',
+                            requestBody: groovy.json.JsonOutput.toJson(payload),
+                            url: "${API_URL}"
+            }
+        }
+
         always {
             echo "Pipeline completed. Cleaning up Docker resources..."
             sh 'docker-compose -f ${DOCKER_COMPOSE_FILE} down || true'

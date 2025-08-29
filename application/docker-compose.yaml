@@ -16,27 +16,41 @@ services:
       timeout: 5s
       retries: 5
 
-  server:
-    image: abdelrahmandevops/devops-app:latest
-    container_name: app-server
+  backend:
     build:
       context: .
+      dockerfile: Dockerfile
+    container_name: app-backend
     ports:
       - "8080:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/mydb
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: password
+      SERVER_PORT: 8080
     restart: always
     depends_on:
       db:
         condition: service_healthy
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_URL: http://backend:8080
+    container_name: app-frontend
+    ports:
+      - "3000:80"  # container 80 served via Nginx to host 3000
+    depends_on:
+      - backend
+    restart: always
+
   test:
     image: python:3.13-slim
     container_name: app-tests
     depends_on:
-      - server
+      - backend
     working_dir: /tests
     volumes:
       - ./tests:/tests
