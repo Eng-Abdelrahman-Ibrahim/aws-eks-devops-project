@@ -58,7 +58,7 @@ pipeline {
             steps {
                 sh '''
                     echo "Starting all services..."
-                    docker-compose -f ${DOCKER_COMPOSE_FILE} up -d
+                    docker compose -f ${DOCKER_COMPOSE_FILE} up -d
                 '''
             }
         }
@@ -67,7 +67,7 @@ pipeline {
             steps {
                 sh '''
                     echo "Running backend API tests..."
-                    docker-compose -f ${DOCKER_COMPOSE_FILE} run --rm test
+                    docker compose -f ${DOCKER_COMPOSE_FILE} run --rm test
                 '''
             }
         }
@@ -111,7 +111,7 @@ pipeline {
 
         stage('Cleanup') {
             steps {
-                sh 'docker-compose -f ${DOCKER_COMPOSE_FILE} down'
+                sh 'docker compose -f ${DOCKER_COMPOSE_FILE} down'
             }
         }
     }
@@ -147,7 +147,7 @@ pipeline {
         }
 
         echo "Cleaning up Docker resources..."
-        sh 'docker-compose -f ${DOCKER_COMPOSE_FILE} down || true'
+        sh 'docker compose -f ${DOCKER_COMPOSE_FILE} down || true'
     }
  }
 }
