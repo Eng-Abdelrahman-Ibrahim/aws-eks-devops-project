@@ -53,7 +53,7 @@ services:
       - backend
     working_dir: /tests
     volumes:
-      - /var/jenkins_home/workspace/LocalTest/application/tests:/tests
+      - ./tests:/tests
     command: >
       sh -c "
         pip install --no-cache-dir -r requirements.txt &&
