@@ -5,7 +5,7 @@ pipeline {
         DOCKER_COMPOSE_FILE = './application/docker-compose.yaml'
         BACKEND_IMAGE = 'abdelrahmandevops/devops-app:latest'
         FRONTEND_IMAGE = 'abdelrahmandevops/devops-frontend:latest'
-        DASHBOARD_API = "http://backend:8080/api/deployments"
+        DASHBOARD_API = "http://host.docker.internal:8080/api/deployments"
         DOCKER_HOST = 'unix:///var/run/docker.sock'
     }
 
@@ -69,21 +69,21 @@ pipeline {
         stage('Notify Dashboard') {
             steps {
                 script {
-                    def headers = [:]
-                    if (env.DASHBOARD_TOKEN) {
-                        headers['Authorization'] = "Bearer ${env.DASHBOARD_TOKEN}"
-                    }
-                    headers['Content-Type'] = 'application/json'
-                    
+                    def headers = [
+                        [name: 'Content-Type', value: 'application/json']
+                    ]
+            
                     def payload = """{
-                        "ref": "refs/heads/main",
-                        "status": "${currentBuild.currentResult}"
+                        "version": "build-${env.BUILD_NUMBER ?: '1.0.0'}",
+                        "environment": "DEV",
+                        "success": ${currentBuild.currentResult == 'SUCCESS'},
+                        "notes": "Jenkins build ${env.BUILD_NUMBER} - ${currentBuild.currentResult}"
                     }"""
-                    
+            
                     httpRequest(
                         httpMode: 'POST',
                         url: env.DASHBOARD_API,
-                        customHeaders: headers.collect { k, v -> [name: k, value: v] },
+                        headers: headers,
                         requestBody: payload,
                         contentType: 'APPLICATION_JSON',
                         validResponseCodes: '100:399'
@@ -91,6 +91,7 @@ pipeline {
                 }
             }
         }
+
 
         stage('Push Docker Images') {
             steps {
