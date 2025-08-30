@@ -4,16 +4,18 @@ import time
 BASE_URL = "http://app-backend:8080"  # Java app default port
 
 
-def wait_for_app(url, retries=10, delay=3):
+def wait_for_app(url, retries=15, delay=5):  # Increase retries and delay
     """Wait until the app responds or retries run out"""
-    for _ in range(retries):
+    for attempt in range(retries):
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=5)
             if response.status_code == 200:
+                print(f"App became ready after {attempt * delay} seconds")
                 return True
-        except requests.exceptions.ConnectionError:
-            pass
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+            print(f"Attempt {attempt + 1}: {e}")
         time.sleep(delay)
+    print(f"App never became ready after {retries * delay} seconds")
     return False
 
 
