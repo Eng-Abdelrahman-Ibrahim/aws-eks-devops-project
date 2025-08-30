@@ -51,11 +51,11 @@ services:
     container_name: app-tests
     depends_on:
       - backend
-    working_dir: /tests
     volumes:
       - ./tests:/tests
     command: >
       sh -c "
+        cd /tests &&
         pip install --no-cache-dir -r requirements.txt &&
         pytest test_api_dashboard.py --maxfail=1 --disable-warnings -q
       "

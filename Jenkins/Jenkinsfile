@@ -67,7 +67,7 @@ pipeline {
             steps {
                 sh '''
                     echo "Running backend API tests..."
-                    cd application && docker compose run --rm test
+                    docker compose -f ${DOCKER_COMPOSE_FILE} run --rm test
                 '''
             }
         }
