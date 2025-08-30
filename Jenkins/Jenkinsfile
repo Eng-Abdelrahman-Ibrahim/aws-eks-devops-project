@@ -65,12 +65,15 @@ pipeline {
 
         stage('Run API Tests') {
             steps {
-                sh '''
-                    echo "Running backend API tests..."
-                    docker compose -f ${DOCKER_COMPOSE_FILE} run --rm test
-                '''
-            }
+                dir("${WORKSPACE}/application") {   // ensures relative paths match workspace
+                    sh """
+                    docker compose -f docker-compose.yaml run --rm test \
+                    -v ${WORKSPACE}/application/tests:/tests
+            """
         }
+    }
+}
+
 
         stage('Notify Dashboard') {
             steps {
