@@ -54,11 +54,11 @@ services:
     volumes:
       - ./tests:/tests
     command: >
-      sh -c "
-        cd /tests &&
-        pip install --no-cache-dir -r requirements.txt &&
-        pytest test_api_dashboard.py --maxfail=1 --disable-warnings -q
-      "
+     sh -c "
+      pip install --no-cache-dir pytest requests &&
+      cd /tests &&
+      pytest test_api_dashboard.py --maxfail=1 --disable-warnings -q
+     "
 
 volumes:
   db-data:
