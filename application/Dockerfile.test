@@ -1,0 +1,13 @@
+# Dockerfile.test
+FROM python:3.13-slim
+
+WORKDIR /tests
+
+# Copy ONLY the test files
+COPY tests/ .
+
+# Install test dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Default command to run tests
+CMD ["pytest", "test_api_dashboard.py", "--maxfail=1", "--disable-warnings", "-q"]
