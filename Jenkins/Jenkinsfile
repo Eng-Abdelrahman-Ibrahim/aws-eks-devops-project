@@ -58,7 +58,7 @@ pipeline {
             steps {
                 sh '''
                     echo "Starting all services..."
-                    cd application && docker compose up -d
+                    docker build -t ${FRONTEND_IMAGE} ./application/frontend
                 '''
             }
         }
@@ -67,10 +67,10 @@ pipeline {
             steps {
                 sh '''
                     echo "Rebuilding test image..."
-                    cd application && docker compose build --no-cache test
+                    docker compose -f ${DOCKER_COMPOSE_FILE} build --no-cache test
             
                     echo "Running backend API tests..."
-                    cd application && docker compose run --rm test
+                    docker compose -f ${DOCKER_COMPOSE_FILE} run --rm test
                 '''
             }
         }
