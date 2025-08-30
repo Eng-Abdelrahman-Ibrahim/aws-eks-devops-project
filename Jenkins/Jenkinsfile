@@ -54,44 +54,26 @@ pipeline {
             }
         }
 
+        stage('Start Services') {
+            steps {
+                sh '''
+                    echo "Starting all services..."
+                    cd application && docker compose up -d
+                '''
+            }
+        }
+
         stage('Run API Tests') {
             steps {
                 sh '''
                     echo "Rebuilding test image..."
-                    docker compose -f ${DOCKER_COMPOSE_FILE} build --no-cache test
+                    cd application && docker compose build --no-cache test
             
                     echo "Running backend API tests..."
-                    docker compose -f ${DOCKER_COMPOSE_FILE} run --rm test
-                  '''
+                    cd application && docker compose run --rm test
+                '''
             }
         }
-    
-        stage('Notify Dashboard') {
-            steps {
-                script {
-                    def headers = [
-                        [name: 'Content-Type', value: 'application/json']
-                    ]
-            
-                    def payload = """{
-                        "version": "build-${env.BUILD_NUMBER ?: '1.0.0'}",
-                        "environment": "DEV",
-                        "success": ${currentBuild.currentResult == 'SUCCESS'},
-                        "notes": "Jenkins build ${env.BUILD_NUMBER} - ${currentBuild.currentResult}"
-                    }"""
-            
-                    httpRequest(
-                        httpMode: 'POST',
-                        url: env.DASHBOARD_API,
-                        headers: headers,
-                        requestBody: payload,
-                        contentType: 'APPLICATION_JSON',
-                        validResponseCodes: '100:399'
-                    )
-                }
-            }
-        }
-
 
         stage('Push Docker Images') {
             steps {
@@ -104,45 +86,41 @@ pipeline {
             }
         }
 
-        stage('Cleanup') {
-            steps {
-                sh 'docker compose -f ${DOCKER_COMPOSE_FILE} down'
-            }
-        }
+        // REMOVED Cleanup stage from here - moved to post section
     }
 
     post {
-    always {
-        echo "Pipeline completed. Notifying dashboard..."
-        script {
-            def headers = [:]
-            if (env.DASHBOARD_TOKEN) {
-                headers['Authorization'] = "Bearer ${env.DASHBOARD_TOKEN}"
-            }
-            headers['Content-Type'] = 'application/json'
+        always {
+            echo "Pipeline completed. Notifying dashboard..."
+            script {
+                def headers = [
+                    [name: 'Content-Type', value: 'application/json']
+                ]
 
-            def payload = """{
-                "ref": "refs/heads/main",
-                "status": "${currentBuild.currentResult}"
-            }"""
+                def payload = """{
+                    "version": "build-${env.BUILD_NUMBER ?: '1.0.0'}",
+                    "environment": "DEV",
+                    "success": ${currentBuild.currentResult == 'SUCCESS'},
+                    "notes": "Jenkins build ${env.BUILD_NUMBER} - ${currentBuild.currentResult}"
+                }"""
 
-            try {
-                httpRequest(
-                    httpMode: 'POST',
-                    url: env.DASHBOARD_API,
-                    customHeaders: headers.collect { k, v -> [name: k, value: v] },
-                    requestBody: payload,
-                    contentType: 'APPLICATION_JSON',
-                    validResponseCodes: '100:399'
-                )
-                echo "Dashboard notified successfully."
-            } catch (e) {
-                echo "Failed to notify dashboard: ${e.getMessage()}"
+                try {
+                    httpRequest(
+                        httpMode: 'POST',
+                        url: env.DASHBOARD_API,
+                        headers: headers,
+                        requestBody: payload,
+                        contentType: 'APPLICATION_JSON',
+                        validResponseCodes: '100:399'
+                    )
+                    echo "Dashboard notified successfully."
+                } catch (e) {
+                    echo "Failed to notify dashboard: ${e.getMessage()}"
+                }
             }
+
+            echo "Cleaning up Docker resources..."
+            sh 'cd application && docker compose down || true'
         }
-
-        echo "Cleaning up Docker resources..."
-        sh 'docker compose -f ${DOCKER_COMPOSE_FILE} down || true'
     }
- }
 }
