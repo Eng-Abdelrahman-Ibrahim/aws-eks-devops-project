@@ -1,7 +1,7 @@
 import requests
 import time
 
-BASE_URL = "http://server:8080"  # Java app default port
+BASE_URL = "http://app-backend:8080"  # Java app default port
 
 
 def wait_for_app(url, retries=10, delay=3):
