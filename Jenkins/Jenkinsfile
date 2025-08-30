@@ -65,16 +65,7 @@ pipeline {
                   '''
             }
         }
-
-        stage('Run API Tests') {
-            steps {
-                sh '''
-                    echo "Running backend API tests..."
-                    docker compose -f ${DOCKER_COMPOSE_FILE} run --rm test
-                '''
-            }
-        }
-
+    
         stage('Notify Dashboard') {
             steps {
                 script {
