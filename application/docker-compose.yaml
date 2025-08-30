@@ -53,7 +53,7 @@ services:
       - backend
     working_dir: /tests
     volumes:
-      - ${PWD}/application/tests:/tests
+      - ${WORKSPACE}/application/tests:/tests
     command: >
       sh -c "
         pip install --no-cache-dir -r requirements.txt &&
