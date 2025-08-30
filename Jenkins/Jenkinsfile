@@ -54,12 +54,15 @@ pipeline {
             }
         }
 
-        stage('Start Services') {
+        stage('Run API Tests') {
             steps {
                 sh '''
-                    echo "Starting all services..."
-                    docker compose -f ${DOCKER_COMPOSE_FILE} up -d
-                '''
+                    echo "Rebuilding test image..."
+                    docker compose -f ${DOCKER_COMPOSE_FILE} build --no-cache test
+            
+                    echo "Running backend API tests..."
+                    docker compose -f ${DOCKER_COMPOSE_FILE} run --rm test
+                  '''
             }
         }
 
