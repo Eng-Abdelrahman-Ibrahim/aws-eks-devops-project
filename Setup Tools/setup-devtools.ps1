@@ -14,6 +14,14 @@ $awsInstaller = "$env:TEMP\AWSCLIV2.msi"
 Invoke-WebRequest -Uri "https://awscli.amazonaws.com/AWSCLIV2.msi" -OutFile $awsInstaller
 Start-Process msiexec.exe -Wait -ArgumentList "/i `"$awsInstaller`" /qn"
 Remove-Item $awsInstaller
+
+# Ensure AWS CLI path is available
+$awsPath = "C:\Program Files\Amazon\AWSCLIV2"
+if (-Not ($env:Path -split ";" | ForEach-Object { $_.Trim() } | Where-Object { $_ -eq $awsPath })) {
+    [System.Environment]::SetEnvironmentVariable("Path", "$([System.Environment]::GetEnvironmentVariable('Path','Machine'));$awsPath", [System.EnvironmentVariableTarget]::Machine)
+}
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine")
+
 Write-Host "AWS CLI version:" -ForegroundColor Yellow
 aws --version
 
@@ -25,6 +33,14 @@ $gitInstaller = "$env:TEMP\GitSetup.exe"
 Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.51.0.windows.1/Git-2.51.0-64-bit.exe" -OutFile $gitInstaller
 Start-Process -FilePath $gitInstaller -ArgumentList "/VERYSILENT", "/NORESTART" -Wait
 Remove-Item $gitInstaller
+
+# Ensure Git path is available
+$gitPath = "C:\Program Files\Git\bin"
+if (-Not ($env:Path -split ";" | ForEach-Object { $_.Trim() } | Where-Object { $_ -eq $gitPath })) {
+    [System.Environment]::SetEnvironmentVariable("Path", "$([System.Environment]::GetEnvironmentVariable('Path','Machine'));$gitPath", [System.EnvironmentVariableTarget]::Machine)
+}
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine")
+
 Write-Host "Git version:" -ForegroundColor Yellow
 git --version
 
@@ -42,14 +58,16 @@ Expand-Archive -Path $terraformZip -DestinationPath $terraformPath -Force
 Remove-Item $terraformZip
 
 # Add Terraform to PATH
-$envPath = [System.Environment]::GetEnvironmentVariable("Path", [System.EnvironmentVariableTarget]::Machine)
-if (-Not $envPath.Contains($terraformPath)) {
-    [System.Environment]::SetEnvironmentVariable("Path", "$envPath;$terraformPath", [System.EnvironmentVariableTarget]::Machine)
+if (-Not ($env:Path -split ";" | ForEach-Object { $_.Trim() } | Where-Object { $_ -eq $terraformPath })) {
+    [System.Environment]::SetEnvironmentVariable("Path", "$([System.Environment]::GetEnvironmentVariable('Path','Machine'));$terraformPath", [System.EnvironmentVariableTarget]::Machine)
 }
-
-# Reload environment variables for current session
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine")
+
 Write-Host "Terraform version:" -ForegroundColor Yellow
 terraform -version
 
+# ----------------------------
+# Done
+# ----------------------------
 Write-Host "Setup complete! AWS CLI, Git, and Terraform are installed." -ForegroundColor Cyan
+Write-Host "You may need to open a NEW PowerShell window if versions do not show correctly." -ForegroundColor Magenta
