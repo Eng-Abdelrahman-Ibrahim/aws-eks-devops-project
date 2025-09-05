@@ -230,6 +230,9 @@ resource "aws_instance" "ansible" {
               unzip awscliv2.zip
               ./aws/install
 
+              # Install the Session Manager plugin
+              sudo dnf install -y https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_64bit/session-manager-plugin.rpm
+
               # Install kubectl
               curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
               install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
