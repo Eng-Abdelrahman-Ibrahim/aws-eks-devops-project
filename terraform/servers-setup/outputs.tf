@@ -25,12 +25,6 @@ output "nexus_url" {
   value       = "http://${aws_instance.nexus.public_ip}:8081"
 }
 
-# --- IAM / Key Info ---
-output "key_name" {
-  description = "SSH key pair name used for instances"
-  value       = aws_key_pair.deployer.key_name
-}
-
 output "ansible_role" {
   description = "IAM role attached to Ansible controller"
   value       = aws_iam_role.eks_admin_role.name
