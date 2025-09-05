@@ -2,18 +2,91 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# Auto-detect public IP
+# -----------------------------
+# Data sources
+# -----------------------------
+
+# Get your public IP (to allow SSH only from your machine)
 data "http" "myip" {
   url = "https://ipv4.icanhazip.com"
 }
 
-# Key pair
-resource "aws_key_pair" "deployer" {
-  key_name   = "deployer-key"
-  public_key = file("${path.module}/../.ssh/deployer-key.pub")
+# Get latest Amazon Linux 2023 AMI
+data "aws_ami" "al2023" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-x86_64"]
+  }
 }
 
-# IAM Role for Ansible (EKS access without creds)
+# -----------------------------
+# Secrets Manager for SSH key
+# -----------------------------
+resource "aws_secretsmanager_secret" "deployer_key" {
+  name        = "deployer-key"
+  description = "SSH private key for Ansible/Jenkins access"
+}
+
+resource "aws_secretsmanager_secret_version" "deployer_key_version" {
+  secret_id     = aws_secretsmanager_secret.deployer_key.id
+  secret_string = file("${path.module}/.ssh/deployer-key")
+}
+
+# -----------------------------
+# IAM Roles & Policies
+# -----------------------------
+
+# Policy to allow reading SSH key from Secrets Manager
+resource "aws_iam_policy" "ansible_secrets_policy" {
+  name        = "ansible-secrets-policy"
+  description = "Allow Ansible EC2 to read deployer-key from Secrets Manager"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect   = "Allow",
+        Action   = ["secretsmanager:GetSecretValue"],
+        Resource = aws_secretsmanager_secret.deployer_key.arn
+      }
+    ]
+  })
+}
+
+# Role for Ansible controller
+resource "aws_iam_role" "ansible_role" {
+  name = "ansible-ec2-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        },
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+# Attach policy to role
+resource "aws_iam_role_policy_attachment" "ansible_attach" {
+  role       = aws_iam_role.ansible_role.name
+  policy_arn = aws_iam_policy.ansible_secrets_policy.arn
+}
+
+# Instance profile for EC2
+resource "aws_iam_instance_profile" "ansible_profile" {
+  name = "ansible-ec2-profile"
+  role = aws_iam_role.ansible_role.name
+}
+
+# Separate role for full EKS Admin (optional)
 resource "aws_iam_role" "eks_admin_role" {
   name = "ansible-eks-admin-role"
 
@@ -41,7 +114,11 @@ resource "aws_iam_instance_profile" "eks_admin_profile" {
   role = aws_iam_role.eks_admin_role.name
 }
 
+# -----------------------------
 # Security Groups
+# -----------------------------
+
+# Ansible SG
 resource "aws_security_group" "ansible_sg" {
   name        = "ansible_sg"
   description = "SG for Ansible control machine"
@@ -61,6 +138,7 @@ resource "aws_security_group" "ansible_sg" {
   }
 }
 
+# Jenkins SG
 resource "aws_security_group" "jenkins_sg" {
   name        = "jenkins_sg"
   description = "SG for Jenkins"
@@ -69,21 +147,14 @@ resource "aws_security_group" "jenkins_sg" {
     from_port       = 22
     to_port         = 22
     protocol        = "tcp"
-    security_groups = [aws_security_group.ansible_sg.id]
+    security_groups = [aws_security_group.ansible_sg.id] # only Ansible can SSH
   }
 
   ingress {
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"] # Jenkins UI
   }
 
   egress {
@@ -94,22 +165,23 @@ resource "aws_security_group" "jenkins_sg" {
   }
 }
 
+# Nexus SG
 resource "aws_security_group" "nexus_sg" {
   name        = "nexus_sg"
   description = "SG for Nexus Repo"
 
   ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["${chomp(data.http.myip.response_body)}/32"]
+    from_port       = 22
+    to_port         = 22
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ansible_sg.id] # only Ansible can SSH
   }
 
   ingress {
     from_port   = 8081
     to_port     = 8081
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"] # Nexus UI
   }
 
   egress {
@@ -120,22 +192,14 @@ resource "aws_security_group" "nexus_sg" {
   }
 }
 
-# Get Amazon Linux 2023 AMI
-data "aws_ami" "al2023" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["al2023-ami-*-x86_64"]
-  }
-}
+# -----------------------------
+# EC2 Instances
+# -----------------------------
 
 # Ansible Controller
 resource "aws_instance" "ansible" {
   ami                    = data.aws_ami.al2023.id
   instance_type          = "t3.micro"
-  key_name               = aws_key_pair.deployer.key_name
   vpc_security_group_ids = [aws_security_group.ansible_sg.id]
   iam_instance_profile   = aws_iam_instance_profile.eks_admin_profile.name
 
@@ -145,13 +209,23 @@ resource "aws_instance" "ansible" {
 
   user_data = <<-EOF
               #!/bin/bash
+              set -e
               dnf update -y
               dnf install -y ansible git unzip tar
 
-              # Install AWS CLI v2
+              # AWS CLI v2
               curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
               unzip awscliv2.zip
               ./aws/install
+
+              # Fetch SSH key from Secrets Manager
+              mkdir -p /home/ec2-user/.ssh
+              aws secretsmanager get-secret-value \
+                --secret-id ${aws_secretsmanager_secret.deployer_key.name} \
+                --query SecretString --output text \
+                > /home/ec2-user/.ssh/deployer-key
+              chown ec2-user:ec2-user /home/ec2-user/.ssh/deployer-key
+              chmod 600 /home/ec2-user/.ssh/deployer-key
 
               # Install kubectl
               curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
@@ -175,7 +249,6 @@ resource "aws_instance" "ansible" {
 resource "aws_instance" "jenkins" {
   ami                    = data.aws_ami.al2023.id
   instance_type          = "t3.micro"
-  key_name               = aws_key_pair.deployer.key_name
   vpc_security_group_ids = [aws_security_group.jenkins_sg.id]
 
   tags = {
@@ -184,12 +257,13 @@ resource "aws_instance" "jenkins" {
 
   user_data = <<-EOF
               #!/bin/bash
+              set -e
               dnf update -y
               dnf install -y java-17-amazon-corretto
 
-              # Install Jenkins
-              curl -fsSL https://pkg.jenkins.io/redhat-stable/jenkins.io.key | sudo tee /etc/pki/rpm-gpg/RPM-GPG-KEY-jenkins
-              curl -fsSL https://pkg.jenkins.io/redhat-stable/jenkins.repo | sudo tee /etc/yum.repos.d/jenkins.repo
+              # Jenkins setup
+              curl -fsSL https://pkg.jenkins.io/redhat-stable/jenkins.io.key | tee /etc/pki/rpm-gpg/RPM-GPG-KEY-jenkins
+              curl -fsSL https://pkg.jenkins.io/redhat-stable/jenkins.repo | tee /etc/yum.repos.d/jenkins.repo
               dnf install -y jenkins
               systemctl enable jenkins
               systemctl start jenkins
@@ -199,8 +273,7 @@ resource "aws_instance" "jenkins" {
 # Nexus Repo
 resource "aws_instance" "nexus" {
   ami                    = data.aws_ami.al2023.id
-  instance_type          = "t3.micro" # Nexus needs more memory
-  key_name               = aws_key_pair.deployer.key_name
+  instance_type          = "t3.small" # better than micro for memory
   vpc_security_group_ids = [aws_security_group.nexus_sg.id]
 
   tags = {
@@ -209,44 +282,40 @@ resource "aws_instance" "nexus" {
 
   user_data = <<-EOF
               #!/bin/bash
+              set -e
               dnf update -y
               dnf install -y java-17-amazon-corretto wget
 
-              # Install Nexus
-                useradd nexus
-                cd /opt
+              # Nexus user and install
+              useradd nexus
+              cd /opt
+              wget https://download.sonatype.com/nexus/3/nexus-3.83.2-01-linux-x86_64.tar.gz
+              tar -xvzf nexus-3.83.2-01-linux-x86_64.tar.gz
+              mv nexus-3.83.2-01 nexus
+              chown -R nexus:nexus /opt/nexus
 
-              # Download Nexus (3.83.2-01)
-                wget https://download.sonatype.com/nexus/3/nexus-3.83.2-01-linux-x86_64.tar.gz
-                tar -xvzf nexus-3.83.2-01-linux-x86_64.tar.gz
-                mv nexus-3.83.2-01 nexus
-                chown -R nexus:nexus /opt/nexus
+              echo 'run_as_user="nexus"' > /opt/nexus/bin/nexus.rc
 
-              # Configure Nexus to run as nexus user
-                echo 'run_as_user="nexus"' > /opt/nexus/bin/nexus.rc
+              # systemd service
+              cat <<EOL > /etc/systemd/system/nexus.service
+              [Unit]
+              Description=Nexus Repository Manager
+              After=network.target
 
-              # Create systemd service
-                cat <<EOL > /etc/systemd/system/nexus.service
-                [Unit]
-                Description=Nexus Repository Manager
-                After=network.target
+              [Service]
+              Type=forking
+              LimitNOFILE=65536
+              ExecStart=/opt/nexus/bin/nexus start
+              ExecStop=/opt/nexus/bin/nexus stop
+              User=nexus
+              Restart=on-abort
 
-                [Service]
-                Type=forking
-                LimitNOFILE=65536
-                ExecStart=/opt/nexus/bin/nexus start
-                ExecStop=/opt/nexus/bin/nexus stop
-                User=nexus
-                Restart=on-abort
+              [Install]
+              WantedBy=multi-user.target
+              EOL
 
-                [Install]
-                WantedBy=multi-user.target
-                EOL
-
-              # Reload systemd and enable Nexus
-                systemctl daemon-reload
-                systemctl enable nexus
-                systemctl start nexus
-  EOF
-              
+              systemctl daemon-reload
+              systemctl enable nexus
+              systemctl start nexus
+              EOF
 }
