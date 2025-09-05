@@ -1,9 +1,43 @@
 # https://github.com/iam-veeramalla/aws-devops-zero-to-hero/tree/main/day-22
 
-1. Install kubectl and eksctl
-2. ## Install EKS
+1. ## Install AWS CLI, AWS CLI, Git, kubectl, eksctl, and Helm
 
-Please follow the prerequisites doc before this.
+```
+# Update system
+sudo dnf update -y
+
+# Install Git
+sudo dnf install git -y
+
+# Install AWS CLI v2
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+aws --version
+
+# Install kubectl (latest stable)
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+kubectl version --client
+
+# Install eksctl
+ARCH=amd64
+PLATFORM=$(uname -s)_$ARCH
+curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
+tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp
+sudo mv /tmp/eksctl /usr/local/bin
+eksctl version
+
+# Install Helm
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 get_helm.sh
+./get_helm.sh
+helm version
+
+```
+
+2. ## Configure EKS
+
 
 ### Install using Fargate
 
@@ -30,7 +64,7 @@ eksctl create fargateprofile \
     --cluster demo-cluster \
     --region us-east-1 \
     --name alb-sample-app \
-    --namespace game-2048
+    --namespace my-app
 ```
 
 ### Deploy the deployment, service and ingress
@@ -41,12 +75,12 @@ kubectl apply -f https://raw.githubusercontent.com/kubernetes-sigs/aws-load-bala
 Try:
 
 ```
-kubectl get pods -n game-2048
-kubectl get svc -n game-2048
-kubectl get ingress -n game-2048
+kubectl get pods -n my-app
+kubectl get svc -n my-app
+kubectl get ingress -n my-app
 ```
 ```
-PS C:\WINDOWS\system32> kubectl get ingress -n game-2048
+PS C:\WINDOWS\system32> kubectl get ingress -n my-app
 NAME           CLASS   HOSTS   ADDRESS   PORTS   AGE
 ingress-2048   alb     *                 80      2m16s
 ```
@@ -125,7 +159,7 @@ kubectl get deployment -n kube-system aws-load-balancer-controller
 ### Verify ALB is attached to ingress
 
 ```
-PS C:\WINDOWS\system32> kubectl get ingress -n game-2048
+PS C:\WINDOWS\system32> kubectl get ingress -n my-app
 NAME           CLASS   HOSTS   ADDRESS                                                                   PORTS   AGE
 ingress-2048   alb     *       k8s-game2048-ingress2-bcac0b5b37-2102234151.us-east-1.elb.amazonaws.com   80      54m
 ```
