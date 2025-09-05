@@ -10,7 +10,7 @@ data "http" "myip" {
 # Key pair
 resource "aws_key_pair" "deployer" {
   key_name   = "deployer-key"
-  public_key = file("~/.ssh/deployer-key.pub")
+  public_key = file("${path.module}/../.ssh/deployer-key.pub")
 }
 
 # IAM Role for Ansible (EKS access without creds)
