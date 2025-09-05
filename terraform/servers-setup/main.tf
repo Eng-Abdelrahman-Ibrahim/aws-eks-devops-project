@@ -199,7 +199,7 @@ resource "aws_instance" "jenkins" {
 # Nexus Repo
 resource "aws_instance" "nexus" {
   ami                    = data.aws_ami.al2023.id
-  instance_type          = "t3.medium" # Nexus needs more memory
+  instance_type          = "t3.micro" # Nexus needs more memory
   key_name               = aws_key_pair.deployer.key_name
   vpc_security_group_ids = [aws_security_group.nexus_sg.id]
 
