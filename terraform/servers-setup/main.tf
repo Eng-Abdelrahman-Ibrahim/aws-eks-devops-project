@@ -213,19 +213,19 @@ resource "aws_instance" "nexus" {
               dnf install -y java-17-amazon-corretto wget
 
               # Install Nexus
-              useradd nexus
+                useradd nexus
                 cd /opt
 
-                # Download Nexus (3.83.2-01)
+              # Download Nexus (3.83.2-01)
                 wget https://download.sonatype.com/nexus/3/nexus-3.83.2-01-linux-x86_64.tar.gz
                 tar -xvzf nexus-3.83.2-01-linux-x86_64.tar.gz
                 mv nexus-3.83.2-01 nexus
                 chown -R nexus:nexus /opt/nexus
 
-                # Configure Nexus to run as nexus user
+              # Configure Nexus to run as nexus user
                 echo 'run_as_user="nexus"' > /opt/nexus/bin/nexus.rc
 
-                # Create systemd service
+              # Create systemd service
                 cat <<EOL > /etc/systemd/system/nexus.service
                 [Unit]
                 Description=Nexus Repository Manager
@@ -243,9 +243,10 @@ resource "aws_instance" "nexus" {
                 WantedBy=multi-user.target
                 EOL
 
-                # Reload systemd and enable Nexus
+              # Reload systemd and enable Nexus
                 systemctl daemon-reload
                 systemctl enable nexus
                 systemctl start nexus
+  EOF
               
 }
