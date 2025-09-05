@@ -6,11 +6,6 @@ provider "aws" {
 # Data sources
 # -----------------------------
 
-# Get your public IP (to allow SSH only from your machine)
-data "http" "myip" {
-  url = "https://ipv4.icanhazip.com"
-}
-
 # Get latest Amazon Linux 2023 AMI
 data "aws_ami" "al2023" {
   most_recent = true
@@ -23,37 +18,18 @@ data "aws_ami" "al2023" {
 }
 
 # -----------------------------
-# Secrets Manager for SSH key
-# -----------------------------
-resource "aws_secretsmanager_secret" "deployer_key" {
-  name        = "deployer-key"
-  description = "SSH private key for Ansible/Jenkins access"
-}
-
-resource "aws_secretsmanager_secret_version" "deployer_key_version" {
-  secret_id     = aws_secretsmanager_secret.deployer_key.id
-  secret_string = file("${path.module}/.ssh/deployer-key")
-}
-
-# -----------------------------
 # IAM Roles & Policies
 # -----------------------------
 
-# Policy to allow reading SSH key from Secrets Manager
-resource "aws_iam_policy" "ansible_secrets_policy" {
-  name        = "ansible-secrets-policy"
-  description = "Allow Ansible EC2 to read deployer-key from Secrets Manager"
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Effect   = "Allow",
-        Action   = ["secretsmanager:GetSecretValue"],
-        Resource = aws_secretsmanager_secret.deployer_key.arn
-      }
-    ]
-  })
+# Common SSM policy attachment
+resource "aws_iam_policy_attachment" "ssm_managed" {
+  name       = "ssm-managed-core"
+  roles      = [
+    aws_iam_role.ansible_role.name,
+    aws_iam_role.jenkins_role.name,
+    aws_iam_role.nexus_role.name
+  ]
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 # Role for Ansible controller
@@ -74,19 +50,43 @@ resource "aws_iam_role" "ansible_role" {
   })
 }
 
-# Attach policy to role
-resource "aws_iam_role_policy_attachment" "ansible_attach" {
-  role       = aws_iam_role.ansible_role.name
-  policy_arn = aws_iam_policy.ansible_secrets_policy.arn
+# Role for Jenkins
+resource "aws_iam_role" "jenkins_role" {
+  name = "jenkins-ec2-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        },
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
 }
 
-# Instance profile for EC2
-resource "aws_iam_instance_profile" "ansible_profile" {
-  name = "ansible-ec2-profile"
-  role = aws_iam_role.ansible_role.name
+# Role for Nexus
+resource "aws_iam_role" "nexus_role" {
+  name = "nexus-ec2-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        },
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
 }
 
-# Separate role for full EKS Admin (optional)
+# EKS Admin role for Ansible (optional)
 resource "aws_iam_role" "eks_admin_role" {
   name = "ansible-eks-admin-role"
 
@@ -109,26 +109,35 @@ resource "aws_iam_role_policy_attachment" "eks_admin_attach" {
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
 
+# Instance profiles
+resource "aws_iam_instance_profile" "ansible_profile" {
+  name = "ansible-ec2-profile"
+  role = aws_iam_role.ansible_role.name
+}
+
+resource "aws_iam_instance_profile" "jenkins_profile" {
+  name = "jenkins-ec2-profile"
+  role = aws_iam_role.jenkins_role.name
+}
+
+resource "aws_iam_instance_profile" "nexus_profile" {
+  name = "nexus-ec2-profile"
+  role = aws_iam_role.nexus_role.name
+}
+
 resource "aws_iam_instance_profile" "eks_admin_profile" {
   name = "ansible-eks-admin-profile"
   role = aws_iam_role.eks_admin_role.name
 }
 
 # -----------------------------
-# Security Groups
+# Security Groups (No SSH ports!)
 # -----------------------------
 
-# Ansible SG
+# Ansible SG - Only egress needed
 resource "aws_security_group" "ansible_sg" {
   name        = "ansible_sg"
   description = "SG for Ansible control machine"
-
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["${chomp(data.http.myip.response_body)}/32"]
-  }
 
   egress {
     from_port   = 0
@@ -136,19 +145,16 @@ resource "aws_security_group" "ansible_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  tags = {
+    Name = "ansible-security-group"
+  }
 }
 
-# Jenkins SG
+# Jenkins SG - Only web UI and egress
 resource "aws_security_group" "jenkins_sg" {
   name        = "jenkins_sg"
   description = "SG for Jenkins"
-
-  ingress {
-    from_port       = 22
-    to_port         = 22
-    protocol        = "tcp"
-    security_groups = [aws_security_group.ansible_sg.id] # only Ansible can SSH
-  }
 
   ingress {
     from_port   = 8080
@@ -163,19 +169,16 @@ resource "aws_security_group" "jenkins_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  tags = {
+    Name = "jenkins-security-group"
+  }
 }
 
-# Nexus SG
+# Nexus SG - Only web UI and egress
 resource "aws_security_group" "nexus_sg" {
   name        = "nexus_sg"
   description = "SG for Nexus Repo"
-
-  ingress {
-    from_port       = 22
-    to_port         = 22
-    protocol        = "tcp"
-    security_groups = [aws_security_group.ansible_sg.id] # only Ansible can SSH
-  }
 
   ingress {
     from_port   = 8081
@@ -189,6 +192,10 @@ resource "aws_security_group" "nexus_sg" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "nexus-security-group"
   }
 }
 
@@ -218,15 +225,6 @@ resource "aws_instance" "ansible" {
               unzip awscliv2.zip
               ./aws/install
 
-              # Fetch SSH key from Secrets Manager
-              mkdir -p /home/ec2-user/.ssh
-              aws secretsmanager get-secret-value \
-                --secret-id ${aws_secretsmanager_secret.deployer_key.name} \
-                --query SecretString --output text \
-                > /home/ec2-user/.ssh/deployer-key
-              chown ec2-user:ec2-user /home/ec2-user/.ssh/deployer-key
-              chmod 600 /home/ec2-user/.ssh/deployer-key
-
               # Install kubectl
               curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
               install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
@@ -250,6 +248,7 @@ resource "aws_instance" "jenkins" {
   ami                    = data.aws_ami.al2023.id
   instance_type          = "t3.micro"
   vpc_security_group_ids = [aws_security_group.jenkins_sg.id]
+  iam_instance_profile   = aws_iam_instance_profile.jenkins_profile.name
 
   tags = {
     Name = "jenkins-server"
@@ -275,6 +274,7 @@ resource "aws_instance" "nexus" {
   ami                    = data.aws_ami.al2023.id
   instance_type          = "t3.small" # better than micro for memory
   vpc_security_group_ids = [aws_security_group.nexus_sg.id]
+  iam_instance_profile   = aws_iam_instance_profile.nexus_profile.name
 
   tags = {
     Name = "nexus-repo"
