@@ -214,15 +214,38 @@ resource "aws_instance" "nexus" {
 
               # Install Nexus
               useradd nexus
-              cd /opt
-              wget https://download.sonatype.com/nexus/3/nexus-3.83.2-01-linux-x86_64.tar.gz
-              tar -xvzf nexus-3.83.2-01-linux-x86_64.tar.gz
-              mv nexus-3.83.2-01 nexus
-              chown -R nexus:nexus /opt/nexus
+                cd /opt
 
-              echo 'run_as_user="nexus"' > /opt/nexus/bin/nexus.rc
-              ln -s /opt/nexus/bin/nexus /etc/init.d/nexus
-              chkconfig --add nexus
-              service nexus start
-              EOF
+                # Download Nexus (3.83.2-01)
+                wget https://download.sonatype.com/nexus/3/nexus-3.83.2-01-linux-x86_64.tar.gz
+                tar -xvzf nexus-3.83.2-01-linux-x86_64.tar.gz
+                mv nexus-3.83.2-01 nexus
+                chown -R nexus:nexus /opt/nexus
+
+                # Configure Nexus to run as nexus user
+                echo 'run_as_user="nexus"' > /opt/nexus/bin/nexus.rc
+
+                # Create systemd service
+                cat <<EOL > /etc/systemd/system/nexus.service
+                [Unit]
+                Description=Nexus Repository Manager
+                After=network.target
+
+                [Service]
+                Type=forking
+                LimitNOFILE=65536
+                ExecStart=/opt/nexus/bin/nexus start
+                ExecStop=/opt/nexus/bin/nexus stop
+                User=nexus
+                Restart=on-abort
+
+                [Install]
+                WantedBy=multi-user.target
+                EOL
+
+                # Reload systemd and enable Nexus
+                systemctl daemon-reload
+                systemctl enable nexus
+                systemctl start nexus
+              
 }
