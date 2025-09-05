@@ -21,17 +21,6 @@ data "aws_ami" "al2023" {
 # IAM Roles & Policies
 # -----------------------------
 
-# Common SSM policy attachment
-resource "aws_iam_policy_attachment" "ssm_managed" {
-  name       = "ssm-managed-core"
-  roles      = [
-    aws_iam_role.ansible_role.name,
-    aws_iam_role.jenkins_role.name,
-    aws_iam_role.nexus_role.name
-  ]
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
-
 # Role for Ansible controller
 resource "aws_iam_role" "ansible_role" {
   name = "ansible-ec2-role"
@@ -86,7 +75,7 @@ resource "aws_iam_role" "nexus_role" {
   })
 }
 
-# EKS Admin role for Ansible (optional)
+# EKS Admin role for Ansible
 resource "aws_iam_role" "eks_admin_role" {
   name = "ansible-eks-admin-role"
 
@@ -107,6 +96,22 @@ resource "aws_iam_role" "eks_admin_role" {
 resource "aws_iam_role_policy_attachment" "eks_admin_attach" {
   role       = aws_iam_role.eks_admin_role.name
   policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}
+
+# SSM attachments for all roles
+resource "aws_iam_role_policy_attachment" "ansible_ssm" {
+  role       = aws_iam_role.ansible_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_role_policy_attachment" "jenkins_ssm" {
+  role       = aws_iam_role.jenkins_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+resource "aws_iam_role_policy_attachment" "nexus_ssm" {
+  role       = aws_iam_role.nexus_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 # Instance profiles
@@ -131,7 +136,7 @@ resource "aws_iam_instance_profile" "eks_admin_profile" {
 }
 
 # -----------------------------
-# Security Groups (No SSH ports!)
+# Security Groups
 # -----------------------------
 
 # Ansible SG - Only egress needed
@@ -200,7 +205,7 @@ resource "aws_security_group" "nexus_sg" {
 }
 
 # -----------------------------
-# EC2 Instances
+# EC2 Instances (Minimal Setup)
 # -----------------------------
 
 # Ansible Controller
@@ -243,7 +248,7 @@ resource "aws_instance" "ansible" {
               EOF
 }
 
-# Jenkins Server
+# Jenkins Server (Blank - for Ansible provisioning)
 resource "aws_instance" "jenkins" {
   ami                    = data.aws_ami.al2023.id
   instance_type          = "t3.micro"
@@ -254,22 +259,10 @@ resource "aws_instance" "jenkins" {
     Name = "jenkins-server"
   }
 
-  user_data = <<-EOF
-              #!/bin/bash
-              set -e
-              dnf update -y
-              dnf install -y java-17-amazon-corretto
-
-              # Jenkins setup
-              curl -fsSL https://pkg.jenkins.io/redhat-stable/jenkins.io.key | tee /etc/pki/rpm-gpg/RPM-GPG-KEY-jenkins
-              curl -fsSL https://pkg.jenkins.io/redhat-stable/jenkins.repo | tee /etc/yum.repos.d/jenkins.repo
-              dnf install -y jenkins
-              systemctl enable jenkins
-              systemctl start jenkins
-              EOF
+  # No user_data - will be provisioned by Ansible
 }
 
-# Nexus Repo
+# Nexus Repo (Blank - for Ansible provisioning)
 resource "aws_instance" "nexus" {
   ami                    = data.aws_ami.al2023.id
   instance_type          = "t3.small" # better than micro for memory
@@ -280,42 +273,5 @@ resource "aws_instance" "nexus" {
     Name = "nexus-repo"
   }
 
-  user_data = <<-EOF
-              #!/bin/bash
-              set -e
-              dnf update -y
-              dnf install -y java-17-amazon-corretto wget
-
-              # Nexus user and install
-              useradd nexus
-              cd /opt
-              wget https://download.sonatype.com/nexus/3/nexus-3.83.2-01-linux-x86_64.tar.gz
-              tar -xvzf nexus-3.83.2-01-linux-x86_64.tar.gz
-              mv nexus-3.83.2-01 nexus
-              chown -R nexus:nexus /opt/nexus
-
-              echo 'run_as_user="nexus"' > /opt/nexus/bin/nexus.rc
-
-              # systemd service
-              cat <<EOL > /etc/systemd/system/nexus.service
-              [Unit]
-              Description=Nexus Repository Manager
-              After=network.target
-
-              [Service]
-              Type=forking
-              LimitNOFILE=65536
-              ExecStart=/opt/nexus/bin/nexus start
-              ExecStop=/opt/nexus/bin/nexus stop
-              User=nexus
-              Restart=on-abort
-
-              [Install]
-              WantedBy=multi-user.target
-              EOL
-
-              systemctl daemon-reload
-              systemctl enable nexus
-              systemctl start nexus
-              EOF
+  # No user_data - will be provisioned by Ansible
 }
