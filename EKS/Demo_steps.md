@@ -1,6 +1,6 @@
 # https://github.com/iam-veeramalla/aws-devops-zero-to-hero/tree/main/day-22
 
-1. ## Install AWS CLI, AWS CLI, Git, kubectl, eksctl, and Helm
+1. ## Install AWS CLI, AWS CLI, Git, kubectl, eksctl, and Helm (Used terraform)
 
 ```
 # Update system
@@ -42,26 +42,26 @@ helm version
 ### Install using Fargate
 
 ```
-eksctl create cluster --name demo-cluster --region us-east-1 --fargate
+eksctl create cluster --name myapp-cluster --region us-east-1 --fargate
 ```
 
 ### Delete the cluster
 
 ```
-eksctl delete cluster --name demo-cluster --region us-east-1
+eksctl delete cluster --name myapp-cluster --region us-east-1
 ```
 
 ### Download kubeconfig file
 
 ```
-aws eks update-kubeconfig --name demo-cluster --region us-east-1
+aws eks update-kubeconfig --name myapp-cluster --region us-east-1
 ```
 
 ### Create Fargate Profile
 
 ```
 eksctl create fargateprofile \
-    --cluster demo-cluster \
+    --cluster myapp-cluster \
     --region us-east-1 \
     --name alb-sample-app \
     --namespace my-app
@@ -98,7 +98,7 @@ So first, we need to create IAM OIDC provider
 ### Configure IAM OIDC Provider
 
 ```
-eksctl utils associate-iam-oidc-provider --cluster demo-cluster --approve
+eksctl utils associate-iam-oidc-provider --cluster myapp-cluster --approve
 ```
 
 ### Configure the ALB controller Add-on
@@ -124,7 +124,7 @@ aws iam create-policy \
 
 ```
 eksctl create iamserviceaccount \
-    --cluster=demo-cluster \
+    --cluster=myapp-cluster \
     --namespace=kube-system \
     --name=aws-load-balancer-controller \
     --attach-policy-arn=arn:aws:iam::068732175550:policy/AWSLoadBalancerControllerIAMPolicy \
@@ -142,7 +142,7 @@ helm repo update eks
 
 
 helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system \
-  --set clusterName=demo-cluster \
+  --set clusterName=myapp-cluster \
   --set serviceAccount.create=false \
   --set serviceAccount.name=aws-load-balancer-controller \
   --set region=us-east-1 \
