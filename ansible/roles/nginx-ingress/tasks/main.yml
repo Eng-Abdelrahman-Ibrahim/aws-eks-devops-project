@@ -1,0 +1,16 @@
+- name: Add ingress-nginx Helm repo
+  community.kubernetes.helm_repository:
+    name: ingress-nginx
+    repo_url: https://kubernetes.github.io/ingress-nginx
+
+- name: Deploy ingress-nginx controller
+  community.kubernetes.helm:
+    name: ingress-nginx
+    chart_ref: ingress-nginx/ingress-nginx
+    release_namespace: ingress-nginx
+    create_namespace: true
+    values:
+      controller:
+        replicaCount: 2
+        service:
+          type: LoadBalancer

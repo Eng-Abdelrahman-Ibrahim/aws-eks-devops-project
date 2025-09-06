@@ -1,0 +1,5 @@
+backend:
+  image: "{{ backend_image | default('nexus.local/backend:latest') }}"
+frontend:
+  image: "{{ frontend_image | default('nexus.local/frontend:latest') }}"
+eks_cluster_name: myapp-eks

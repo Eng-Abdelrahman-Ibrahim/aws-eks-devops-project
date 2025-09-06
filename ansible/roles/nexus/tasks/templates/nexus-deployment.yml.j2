@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nexus
+  namespace: nexus
+spec:
+  serviceName: nexus
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nexus
+  template:
+    metadata:
+      labels:
+        app: nexus
+    spec:
+      containers:
+        - name: nexus
+          image: sonatype/nexus3:latest
+          ports:
+            - containerPort: 8081
+            - containerPort: 8082
+          volumeMounts:
+            - name: nexus-data
+              mountPath: /nexus-data
+  volumeClaimTemplates:
+    - metadata:
+        name: nexus-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 20Gi

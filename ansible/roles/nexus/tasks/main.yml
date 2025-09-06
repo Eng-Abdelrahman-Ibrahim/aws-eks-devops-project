@@ -1,0 +1,21 @@
+---
+- name: Create Nexus namespace
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: nexus
+
+- name: Deploy Nexus StatefulSet
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'nexus-deployment.yml.j2') }}"
+
+- name: Expose Nexus Service
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'nexus-service.yml.j2') }}"
+
+- name: Configure Nexus Ingress
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'nexus-ingress.yml.j2') }}"

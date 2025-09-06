@@ -1,0 +1,8 @@
+# playbooks/install-jenkins.yml
+- name: Install Jenkins on EC2
+  hosts: jenkins-server
+  gather_facts: yes
+  become: yes
+
+  roles:
+    - jenkins

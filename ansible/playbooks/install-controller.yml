@@ -1,0 +1,9 @@
+# playbooks/install-controller.yml
+- name: Prepare Ansible controller (install common dev tools)
+  hosts: ansible-controller
+  connection: local
+  gather_facts: yes
+  become: yes
+
+  roles:
+    - common

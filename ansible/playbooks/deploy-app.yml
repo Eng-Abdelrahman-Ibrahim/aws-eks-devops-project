@@ -1,0 +1,8 @@
+# playbooks/deploy-app.yml
+- name: Deploy Backend, Frontend, and Postgres on EKS
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  roles:
+    - k8s

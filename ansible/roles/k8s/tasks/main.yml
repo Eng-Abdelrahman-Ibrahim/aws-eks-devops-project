@@ -1,0 +1,30 @@
+# roles/k8s/tasks/main.yml
+- name: Deploy backend and frontend
+  kubernetes.core.k8s:
+    state: present
+    namespace: default
+    definition: "{{ lookup('template', 'templates/app-deployment.yml.j2') }}"
+
+- name: Deploy PostgreSQL StatefulSet
+  kubernetes.core.k8s:
+    state: present
+    namespace: default
+    definition: "{{ lookup('template', 'templates/postgres-statefulset.yml.j2') }}"
+
+- name: Deploy services
+  kubernetes.core.k8s:
+    state: present
+    namespace: default
+    definition: "{{ lookup('template', 'templates/services.yml.j2') }}"
+
+- name: Deploy ConfigMaps and Secrets
+  kubernetes.core.k8s:
+    state: present
+    namespace: default
+    definition: "{{ lookup('template', 'templates/configs-secrets.yml.j2') }}"
+
+- name: Deploy Ingress
+  kubernetes.core.k8s:
+    state: present
+    namespace: default
+    definition: "{{ lookup('template', 'templates/ingress.yml.j2') }}"

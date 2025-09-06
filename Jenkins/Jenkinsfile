@@ -1,12 +1,19 @@
 pipeline {
     agent any
 
+    tools {
+        maven "Maven"
+        nodejs "NodeJS"  // Ensure NodeJS tool is configured in Jenkins
+    }
+
     environment {
         DOCKER_COMPOSE_FILE = './application/docker-compose.yaml'
         BACKEND_IMAGE = 'abdelrahmandevops/devops-app:latest'
         FRONTEND_IMAGE = 'abdelrahmandevops/devops-frontend:latest'
+        BUILD_TAG = "build-${env.BUILD_NUMBER}"
         DASHBOARD_API = "http://host.docker.internal:8080/api/deployments"
         DOCKER_HOST = 'unix:///var/run/docker.sock'
+        NEXUS_NAMESPACE = "build"
     }
 
     stages {
@@ -26,6 +33,46 @@ pipeline {
             }
         }
 
+        stage('Build Backend Package') {
+            steps {
+                sh 'mvn clean package -DskipTests -f application/pom.xml'
+            }
+            post {
+                success {
+                    archiveArtifacts artifacts: 'application/target/*.jar', fingerprint: true
+
+                    // Push backend JAR to Nexus
+                    nexusArtifactUploader(
+                        nexusVersion: 'nexus3',
+                        protocol: 'http',
+                        nexusUrl: 'your-nexus-url',
+                        groupId: 'com.example',
+                        version: "${env.BUILD_NUMBER}",
+                        repository: 'maven-releases',
+                        credentialsId: 'Nexus_Access',
+                        artifacts: [[
+                            artifactId: 'backend-app',
+                            classifier: '',
+                            file: 'application/target/backend-app.jar',
+                            type: 'jar'
+                        ]]
+                    )
+                }
+            }
+        }
+
+        stage('Build Frontend') {
+            steps {
+                dir('application/frontend') {
+                    sh 'npm install'
+                    sh 'npm run build'
+                }
+
+                // (Optional) archive frontend build in Jenkins
+                archiveArtifacts artifacts: 'application/frontend/build/**', fingerprint: true
+            }
+        }
+
         stage('Docker Login') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'Docker_Access',
@@ -36,41 +83,24 @@ pipeline {
             }
         }
 
-        stage('Build Backend Image') {
-            steps {
-                sh '''
-                    echo "Building backend Docker image..."
-                    docker build -t ${BACKEND_IMAGE} ./application
-                '''
-            }
-        }
+        stage('Build Backend Docker Image') {
+    steps {
+        sh '''
+            echo "Building backend Docker image..."
+            docker build -t ${BACKEND_IMAGE}:${BUILD_TAG} \
+                --build-arg JAR_FILE=application/target/backend-app.jar \
+                ./application
+        '''
+    }
+}
 
-        stage('Build Frontend Image') {
+        stage('Build Frontend Docker Image') {
             steps {
                 sh '''
                     echo "Building frontend Docker image..."
-                    docker build -t ${FRONTEND_IMAGE} ./application/frontend
-                '''
-            }
-        }
-
-        stage('Start Services') {
-            steps {
-                sh '''
-                    echo "Starting all services..."
-                    docker build -t ${FRONTEND_IMAGE} ./application/frontend
-                '''
-            }
-        }
-
-        stage('Run API Tests') {
-            steps {
-                sh '''
-                    echo "Rebuilding test image..."
-                    docker compose -f ${DOCKER_COMPOSE_FILE} build --no-cache test
-            
-                    echo "Running backend API tests..."
-                    docker compose -f ${DOCKER_COMPOSE_FILE} run --rm test
+                    docker build -t ${FRONTEND_IMAGE}:${BUILD_TAG} \
+                        --build-arg BUILD_DIR=application/frontend/build \
+                        ./application/frontend
                 '''
             }
         }
@@ -79,14 +109,26 @@ pipeline {
             steps {
                 sh '''
                     echo "Pushing backend image..."
-                    docker push ${BACKEND_IMAGE}
+                    docker push ${BACKEND_IMAGE}:${BUILD_TAG}
                     echo "Pushing frontend image..."
-                    docker push ${FRONTEND_IMAGE}
+                    docker push ${FRONTEND_IMAGE}:${BUILD_TAG}
                 '''
             }
         }
 
-        // REMOVED Cleanup stage from here - moved to post section
+      stage('Terraform: Provision Amazon EKS cluster') {
+    steps {
+        dir('EKS/terraform') {
+            sh '''
+                terraform init
+                terraform apply -auto-approve \
+                    -var backend_image=${BACKEND_IMAGE}:${BUILD_TAG} \
+                    -var frontend_image=${FRONTEND_IMAGE}:${BUILD_TAG}
+            '''
+        }
+    }
+}
+
     }
 
     post {

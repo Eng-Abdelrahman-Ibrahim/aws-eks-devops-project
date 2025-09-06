@@ -1,18 +1,54 @@
 # Terraform
-.terraform/
 *.tfstate
 *.tfstate.backup
+.terraform/
+terraform.tfvars
 *.tfvars
-crash.log
 override.tf
 override.tf.json
-*_override.tf
-*_override.tf.json
-.terraform.lock.hcl
+*.tfplan
 
-# IDE / OS
+# Python
+__pycache__/
+*.pyc
+.venv/
+env/
+venv/
+
+# Docker
+*.log
+docker-compose.override.yml
+
+# Helm
+charts/
+*.tgz
+
+# Ansible
+*.retry
+
+# Secrets - MOST IMPORTANT SECTION
+.env
+.env.*
+aws_credentials
+kubeconfig
+*.pem
+*.key
+*.cert
+credentials
+
+# Editor and IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
 .DS_Store
 Thumbs.db
-.ssh
+
+# Logs and temp files
+logs/
+*.log
+tmp/
+temp/
