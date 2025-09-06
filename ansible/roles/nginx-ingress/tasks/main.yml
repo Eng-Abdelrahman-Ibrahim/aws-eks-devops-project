@@ -14,3 +14,22 @@
         replicaCount: 2
         service:
           type: LoadBalancer
+
+- name: Wait for LoadBalancer IP/DNS
+  kubernetes.core.k8s_info:
+    kind: Service
+    namespace: ingress-nginx
+    name: ingress-nginx-controller
+  register: nginx_svc
+  until: nginx_svc.resources[0].status.loadBalancer.ingress is defined
+  retries: 10
+  delay: 15
+
+- name: Set ingress_host fact
+  set_fact:
+    ingress_host: "{{ nginx_svc.resources[0].status.loadBalancer.ingress[0].hostname }}"
+
+- name: Deploy Ingress
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'templates/ingress.yml.j2') }}"
