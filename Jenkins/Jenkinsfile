@@ -3,17 +3,20 @@ pipeline {
 
     tools {
         maven "Maven"
-        nodejs "NodeJS"  // Ensure NodeJS tool is configured in Jenkins
+        nodejs "NodeJS"
     }
 
     environment {
         DOCKER_COMPOSE_FILE = './application/docker-compose.yaml'
-        BACKEND_IMAGE = 'abdelrahmandevops/devops-app:latest'
-        FRONTEND_IMAGE = 'abdelrahmandevops/devops-frontend:latest'
+        BACKEND_IMAGE = 'nexus.local/backend'
+        FRONTEND_IMAGE = 'nexus.local/frontend'
         BUILD_TAG = "build-${env.BUILD_NUMBER}"
         DASHBOARD_API = "http://host.docker.internal:8080/api/deployments"
         DOCKER_HOST = 'unix:///var/run/docker.sock'
-        NEXUS_NAMESPACE = "build"
+        NEXUS_USER = credentials('Nexus_Username')
+        NEXUS_PASS = credentials('Nexus_Password')
+        ANSIBLE_HOST = 'ec2-user@<ANSIBLE_EC2_PUBLIC_IP>'
+        ANSIBLE_KEY = '~/.ssh/deployer-one'
     }
 
     stages {
@@ -40,23 +43,6 @@ pipeline {
             post {
                 success {
                     archiveArtifacts artifacts: 'application/target/*.jar', fingerprint: true
-
-                    // Push backend JAR to Nexus
-                    nexusArtifactUploader(
-                        nexusVersion: 'nexus3',
-                        protocol: 'http',
-                        nexusUrl: 'your-nexus-url',
-                        groupId: 'com.example',
-                        version: "${env.BUILD_NUMBER}",
-                        repository: 'maven-releases',
-                        credentialsId: 'Nexus_Access',
-                        artifacts: [[
-                            artifactId: 'backend-app',
-                            classifier: '',
-                            file: 'application/target/backend-app.jar',
-                            type: 'jar'
-                        ]]
-                    )
                 }
             }
         }
@@ -67,67 +53,69 @@ pipeline {
                     sh 'npm install'
                     sh 'npm run build'
                 }
-
-                // (Optional) archive frontend build in Jenkins
                 archiveArtifacts artifacts: 'application/frontend/build/**', fingerprint: true
             }
         }
 
-        stage('Docker Login') {
+        stage('Docker Login to Nexus') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'Docker_Access',
-                                                 usernameVariable: 'DOCKER_USER',
-                                                 passwordVariable: 'DOCKER_PASS')]) {
-                    sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
-                }
+                sh 'echo "$NEXUS_PASS" | docker login nexus.local -u "$NEXUS_USER" --password-stdin'
             }
         }
 
         stage('Build Backend Docker Image') {
-    steps {
-        sh '''
-            echo "Building backend Docker image..."
-            docker build -t ${BACKEND_IMAGE}:${BUILD_TAG} \
-                --build-arg JAR_FILE=application/target/backend-app.jar \
-                ./application
-        '''
-    }
-}
+            steps {
+                sh """
+                    docker build -t ${BACKEND_IMAGE}:${BUILD_TAG} \
+                        --build-arg JAR_FILE=application/target/backend-app.jar \
+                        ./application
+                """
+            }
+        }
 
         stage('Build Frontend Docker Image') {
             steps {
-                sh '''
-                    echo "Building frontend Docker image..."
+                sh """
                     docker build -t ${FRONTEND_IMAGE}:${BUILD_TAG} \
                         --build-arg BUILD_DIR=application/frontend/build \
                         ./application/frontend
-                '''
+                """
             }
         }
 
-        stage('Push Docker Images') {
+        stage('Push Docker Images to Nexus') {
             steps {
-                sh '''
-                    echo "Pushing backend image..."
+                sh """
                     docker push ${BACKEND_IMAGE}:${BUILD_TAG}
-                    echo "Pushing frontend image..."
                     docker push ${FRONTEND_IMAGE}:${BUILD_TAG}
-                '''
+                """
             }
         }
 
-      stage('Terraform: Provision Amazon EKS cluster') {
-    steps {
-        dir('EKS/terraform') {
-            sh '''
-                terraform init
-                terraform apply -auto-approve \
-                    -var backend_image=${BACKEND_IMAGE}:${BUILD_TAG} \
-                    -var frontend_image=${FRONTEND_IMAGE}:${BUILD_TAG}
-            '''
+        stage('Terraform: Provision Amazon EKS cluster') {
+            steps {
+                dir('EKS/terraform') {
+                    sh """
+                        terraform init
+                        terraform apply -auto-approve \
+                            -var backend_image=${BACKEND_IMAGE}:${BUILD_TAG} \
+                            -var frontend_image=${FRONTEND_IMAGE}:${BUILD_TAG}
+                    """
+                }
+            }
         }
-    }
-}
+
+        stage('Run Ansible for EKS + Nexus Deployment') {
+            steps {
+                sh """
+                    ssh -i ${ANSIBLE_KEY} ${ANSIBLE_HOST} \
+                    'cd ~/ansible && \
+                     ansible-playbook -i inventory playbooks/install-controller.yml && \
+                     ansible-playbook -i inventory playbooks/install-nexus.yml && \
+                     ansible-playbook -i inventory playbooks/deploy-app.yml --extra-vars "BACKEND_IMAGE=${BACKEND_IMAGE}:${BUILD_TAG} FRONTEND_IMAGE=${FRONTEND_IMAGE}:${BUILD_TAG}"'
+                """
+            }
+        }
 
     }
 
@@ -135,17 +123,13 @@ pipeline {
         always {
             echo "Pipeline completed. Notifying dashboard..."
             script {
-                def headers = [
-                    [name: 'Content-Type', value: 'application/json']
-                ]
-
+                def headers = [[name: 'Content-Type', value: 'application/json']]
                 def payload = """{
                     "version": "build-${env.BUILD_NUMBER ?: '1.0.0'}",
                     "environment": "DEV",
                     "success": ${currentBuild.currentResult == 'SUCCESS'},
                     "notes": "Jenkins build ${env.BUILD_NUMBER} - ${currentBuild.currentResult}"
                 }"""
-
                 try {
                     httpRequest(
                         httpMode: 'POST',
