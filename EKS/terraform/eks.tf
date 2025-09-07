@@ -4,11 +4,11 @@ module "eks" {
 
   endpoint_public_access = true
 
-  name = "ecomm-eks"
+  name = "myapp-eks"
   kubernetes_version = "1.33"
 
-  vpc_id = module.ecomm-vpc.vpc_id
-  subnet_ids = module.ecomm-vpc.private_subnets
+  vpc_id = module.myapp-vpc.vpc_id
+  subnet_ids = module.myapp-vpc.private_subnets
 
 
   tags = {

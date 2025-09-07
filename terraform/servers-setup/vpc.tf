@@ -1,11 +1,3 @@
-# Provider
-provider "aws" {
-    # No need for the cerds since you've configured them using aws cli
-    # access_key = ""
-    # secret_key = ""
-    region = "us-east-1"
-}
-
 variable "access_key" {}
 variable "secret_key" {}
 variable "vpc_cidr" {}
@@ -16,11 +8,11 @@ variable "public_subnet_cidrs" {}
 # Get the availability zones in the current region
 data "aws_availability_zones" "azs" {}
 
-module "ecomm-vpc" {
+module "myapp-vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "6.0.1"
 
-   name = "ecomm-vpc"
+   name = "myapp-vpc"
    cidr = var.vpc_cidr
 
    azs = data.aws_availability_zones.azs.names
@@ -36,18 +28,18 @@ module "ecomm-vpc" {
     Terraform = "true"
     Environment = "dev"
 
-    "kubernetes.io/cluster/ecomm-eks-cluster" = "shared"
+    "kubernetes.io/cluster/myapp-eks-cluster" = "shared"
    }
 
 
    public_subnet_tags = {
-    "kubernetes.io/cluster/ecomm-eks-cluster" = "shared"
+    "kubernetes.io/cluster/myapp-eks-cluster" = "shared"
     "kubernetes.io/role/elb" = 1
    }
 
 
    private_subnet_tags = {
-    "kubernetes.io/cluster/ecomm-eks-cluster" = "shared"
+    "kubernetes.io/cluster/myapp-eks-cluster" = "shared"
     "kubernetes.io/role/internal-elb" = 1
    }
 

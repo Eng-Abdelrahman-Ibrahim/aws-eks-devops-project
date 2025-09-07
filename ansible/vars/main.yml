@@ -3,3 +3,10 @@ backend:
 frontend:
   image: "{{ frontend_image | default('nexus.local/frontend:latest') }}"
 eks_cluster_name: myapp-eks
+jenkins_plugins:
+  - git
+  - workflow-aggregator
+  - docker-plugin
+  - configuration-as-code
+  - credentials-binding
+  - pipeline-utility-steps

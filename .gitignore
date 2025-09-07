@@ -35,6 +35,7 @@ kubeconfig
 *.key
 *.cert
 credentials
+secrets*
 
 # Editor and IDE
 .vscode/

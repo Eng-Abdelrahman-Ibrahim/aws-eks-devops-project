@@ -17,17 +17,17 @@ output "eks_cluster_version" {
 # VPC outputs
 output "vpc_id" {
   description = "VPC ID used by the cluster"
-  value       = module.ecomm-vpc.vpc_id
+  value       = module.myapp-vpc.vpc_id
 }
 
 output "private_subnets" {
   description = "Private subnets for EKS worker nodes"
-  value       = module.ecomm-vpc.private_subnets
+  value       = module.myapp-vpc.private_subnets
 }
 
 output "public_subnets" {
   description = "Public subnets for load balancers"
-  value       = module.ecomm-vpc.public_subnets
+  value       = module.myapp-vpc.public_subnets
 }
 
 # Nexus outputs

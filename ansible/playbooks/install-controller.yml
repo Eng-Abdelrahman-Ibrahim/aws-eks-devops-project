@@ -4,6 +4,7 @@
   connection: local
   gather_facts: yes
   become: yes
-
+  vars:
+    eks_cluster_name: myapp-eks
   roles:
     - common

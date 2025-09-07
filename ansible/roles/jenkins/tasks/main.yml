@@ -33,3 +33,5 @@
     name: jenkins
     enabled: true
     state: started
+    
+- import_tasks: env.yml

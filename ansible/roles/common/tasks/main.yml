@@ -56,12 +56,10 @@
   args:
     creates: /usr/local/bin/helm
 
-- name: Configure kubeconfig for EKS
-  ansible.builtin.command: >
-    aws eks update-kubeconfig --name {{ eks_cluster_name }} --region us-east-1
-  environment:
-    AWS_PROFILE: default
-  register: kubeconfig
-  changed_when: "'Added new context' in kubeconfig.stdout"
+#- name: Configure kubeconfig for EKS
+#  ansible.builtin.command: >
+#    aws eks update-kubeconfig --name {{ eks_cluster_name }} --region us-east-1  
+#  register: kubeconfig
+#  changed_when: "'Added new context' in kubeconfig.stdout"
 
 

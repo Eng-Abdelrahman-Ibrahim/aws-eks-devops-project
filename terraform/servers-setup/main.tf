@@ -98,6 +98,16 @@ resource "aws_instance" "ansible_machine" {
               #!/bin/bash
               dnf update -y
               dnf install -y ansible
+
+              # Add SSH key for Jenkins access
+              mkdir -p /home/ec2-user/.ssh
+              echo '${file("~/.ssh/deployer-one")}' > /home/ec2-user/.ssh/id_rsa
+              chmod 600 /home/ec2-user/.ssh/id_rsa
+              chown ec2-user:ec2-user /home/ec2-user/.ssh/id_rsa
+
+              # Start ssh-agent and add private key
+              eval "$(ssh-agent -s)"
+              ssh-add /home/ec2-user/.ssh/deployer-one
               EOF
 }
 
@@ -112,4 +122,26 @@ resource "aws_instance" "jenkins" {
   tags = {
     Name = "jenkins-server"
   }
+}
+
+# 7. Allocate Elastic IP
+resource "aws_eip" "jenkins_eip" {
+  instance = aws_instance.jenkins.id
+  domain   = "vpc"
+
+  tags = {
+    Name = "jenkins-eip"
+  }
+}
+
+# 8. Generate Ansible inventory with Jenkins EIP
+resource "local_file" "ansible_inventory" {
+  filename = "${path.module}/../ansible/inventory/hosts.ini"
+  content  = <<EOT
+[jenkins-server]
+${aws_eip.jenkins_eip.public_ip}
+
+[ansible-controller]
+localhost ansible_connection=local
+EOT
 }
