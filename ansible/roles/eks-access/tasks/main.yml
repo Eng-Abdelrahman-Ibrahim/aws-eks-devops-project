@@ -1,0 +1,27 @@
+- name: Configure AWS CLI with instance profile
+  ansible.builtin.shell: |
+    aws configure set region {{ eks_region }}
+    aws configure set output json
+  become: yes
+
+- name: Update kubeconfig for EKS cluster
+  ansible.builtin.shell: |
+    aws eks update-kubeconfig \
+      --name {{ eks_cluster_name }} \
+      --region {{ eks_region }} \
+      --role-arn {{ eks_role_arn }}
+  environment:
+    AWS_ACCOUNT_ID: "{{ aws_account_id }}"
+  become: yes
+  become_user: ec2-user
+  args:
+    creates: "/home/ec2-user/.kube/config"
+
+- name: Test Kubernetes access
+  ansible.builtin.command: kubectl get nodes
+  register: kubectl_result
+  changed_when: false
+
+- name: Show Kubernetes nodes
+  ansible.builtin.debug:
+    msg: "{{ kubectl_result.stdout }}"

@@ -5,6 +5,7 @@
 
   vars_files:
     - ../vars/secrets.yml   # for jenkins_admin_user / jenkins_admin_pass
+    - ../vars/main.yml         # now includes jenkins_plugins
 
   tasks:
     - name: Install required plugins
@@ -12,8 +13,8 @@
         name: "{{ item }}"
         state: present
         url: "http://localhost:8080"
-        url_username: "{{ jenkins_admin_user }}"
-        url_password: "{{ jenkins_admin_pass }}"
+        url_username: "{{ jenkins_user }}"
+        url_password: "{{ jenkins_password }}"
       loop: "{{ jenkins_plugins }}"
 
     - name: Restart Jenkins after plugins are installed

@@ -40,6 +40,12 @@ resource "aws_iam_role_policy_attachment" "ansible_vpc_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonVPCFullAccess"
 }
 
+# 🔽 NEW: Add EKS Describe policy for kubectl access
+resource "aws_iam_role_policy_attachment" "ansible_eks_describe" {
+  role       = aws_iam_role.ansible_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_Describe_Cluster"
+}
+
 # Create instance profile for EC2
 resource "aws_iam_instance_profile" "ansible_profile" {
   name = "ansible-eks-profile"

@@ -1,0 +1,10 @@
+# playbooks/eks-access.yml
+- name: Get EKS access to Ansible controller
+  hosts: ansible-controller
+  connection: local
+  gather_facts: yes
+  become: yes
+  vars:
+    eks_cluster_name: myapp-eks
+  roles:
+    - eks-access

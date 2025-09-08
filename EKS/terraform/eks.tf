@@ -1,30 +1,46 @@
-module "eks" {
+module "eks_al2023" {
   source  = "terraform-aws-modules/eks/aws"
-  version = "21.1.0"
+  version = "~> 21.0"
 
-  endpoint_public_access = true
-
-  name = "myapp-eks"
+  name               = "${local.name}"
   kubernetes_version = "1.33"
 
-  vpc_id = module.myapp-vpc.vpc_id
-  subnet_ids = module.myapp-vpc.private_subnets
-
-
-  tags = {
-    Environment = "dev"
-    Terraform   = "true"
-  }
-
-
- # EKS Managed Node Group(s)
-  eks_managed_node_groups = {
-    dev = {
-      instance_types = ["t3.medium"]
-
-      min_size     = 1
-      max_size     = 3
-      desired_size = 2
+  # EKS Addons
+  addons = {
+    coredns = {}
+    eks-pod-identity-agent = {
+      before_compute = true
+    }
+    kube-proxy = {}
+    vpc-cni = {
+      before_compute = true
     }
   }
+
+  vpc_id     = module.vpc.vpc_id
+  subnet_ids = module.vpc.private_subnets
+
+  self_managed_node_groups = {
+    example = {
+      ami_type      = "AL2023_x86_64_STANDARD"
+      instance_type = "m6i.large"
+
+      min_size = 2
+      max_size = 3
+      # This value is ignored after the initial creation
+      # https://github.com/bryantbiggs/eks-desired-size-hack
+      desired_size = 2
+
+      # 🔑 ADD SSM POLICY FOR WORKER NODES
+
+      iam_role_additional_policies = {
+        AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+
+  tags = local.tags
+      }
+   }
+  }
 }
+
+# Get current AWS account ID
+data "aws_caller_identity" "current" {}

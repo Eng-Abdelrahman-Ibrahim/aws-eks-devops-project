@@ -11,3 +11,6 @@ jenkins_plugins:
  - docker-plugin
  - kubernetes
  - blueocean
+
+eks_region: us-east-1
+eks_role_arn: "arn:aws:iam::{{ aws_account_id }}:role/ansible-eks-role"
