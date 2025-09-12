@@ -2,7 +2,8 @@
 set -e  # Exit on any error
 
 # Directories
-TERRAFORM_DIR="../terraform/servers-setup"
+EKS_DIR=../EKS/terraform
+TERRAFORM_DIR="../../terraform/servers-setup"
 ANSIBLE_DIR="../../ansible"
 
 # SSH details
@@ -17,6 +18,13 @@ usage() {
     exit 1
 }
 
+# Function to run Terraform apply
+terraform_apply() {
+    echo "=== Running Terraform Apply ==="
+    cd "$EKS_DIR"
+    terraform init
+    terraform apply -auto-approve
+}
 # Function to run Terraform apply
 terraform_apply() {
     echo "=== Running Terraform Apply ==="
@@ -66,10 +74,10 @@ ssh-add ~/.ssh/id_rsa
 
 # Run Jenkins playbook
 cd ~/ansible
-ansible-playbook -i inventory/hosts.ini playbooks/install-jenkins.yml
+ansible-playbook -i inventory/hosts.ini site.yml
 EOF
 
-    echo "✅ Jenkins playbook executed successfully from Ansible EC2!"
+    echo "✅ Ansible Deployments executed successfully from Ansible EC2!"
 }
 
 # Function to run Terraform destroy

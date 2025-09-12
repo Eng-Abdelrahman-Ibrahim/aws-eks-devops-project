@@ -66,6 +66,10 @@
 - name: Download and install aws-iam-authenticator
   ansible.builtin.get_url:
     url: "{{ aws_auth_json.json | json_query('assets[?ends_with(name,`linux_amd64`)].browser_download_url | [0]') }}"
-    dest: /usr/local/bin/aws-iam-authenticator
+    dest: /tmp/aws-iam-authenticator
     mode: '0555'
+  
+- name: Move aws-iam-authenticator to bin directory
+  ansible.builtin.command:
+    cmd: mv /tmp/aws-iam-authenticator /usr/local/bin/aws-iam-authenticator
     creates: /usr/local/bin/aws-iam-authenticator

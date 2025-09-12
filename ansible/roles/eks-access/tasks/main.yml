@@ -1,3 +1,8 @@
+vars_files:
+    - vars/main.yml  # ⬅️ ADD THIS LINE
+roles:
+- eks-access
+
 - name: Configure AWS CLI with instance profile
   ansible.builtin.shell: |
     aws configure set region {{ eks_region }}

@@ -1,4 +1,4 @@
-module "eks_al2023" {
+module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 21.0"
 
@@ -35,9 +35,8 @@ module "eks_al2023" {
 
       iam_role_additional_policies = {
         AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-
-  tags = local.tags
       }
+      tags = local.tags
    }
   }
 }
