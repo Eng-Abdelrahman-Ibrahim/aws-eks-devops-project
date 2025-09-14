@@ -17,7 +17,7 @@ access_entries = {
     AdminUser = {
       principal_arn = "arn:aws:iam::068732175550:user/Admin-user"
       policy_associations = {
-        AdminPolicy = {
+        EKSAdminPolicy = {
           policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
           access_scope = {
             type = "cluster"
@@ -25,18 +25,6 @@ access_entries = {
         }
       }
     },
-    # Access entry for the Ansible role
-    AnsibleRole = {
-      principal_arn = "arn:aws:iam::068732175550:role/ansible-eks-role"
-      policy_associations = {
-        AdminPolicy = {
-          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
-          access_scope = {
-            type = "cluster"
-          }
-        }
-      }
-    }
   }
 
   # EKS Addons

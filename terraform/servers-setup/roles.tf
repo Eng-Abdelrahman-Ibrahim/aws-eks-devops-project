@@ -36,3 +36,6 @@ resource "aws_iam_instance_profile" "ansible_profile" {
   name = "ansible-eks-profile"
   role = aws_iam_role.ansible_role.name
 }
+
+
+
