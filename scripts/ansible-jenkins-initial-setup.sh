@@ -1,61 +1,92 @@
 #!/bin/bash
-set -e  # Exit on any error
+set -e # Exit on any error
 
+# ──────────────────────────────────────────────
 # Directories
-EKS_DIR=../EKS/terraform
-TERRAFORM_DIR="../../terraform/servers-setup"
-ANSIBLE_DIR="../../ansible"
+EKS_DIR="$HOME/GitHub_Repos/aws-eks-devops-project/EKS/terraform"
+TERRAFORM_DIR="$HOME/GitHub_Repos/aws-eks-devops-project/terraform/servers-setup"
+ANSIBLE_DIR="$HOME/GitHub_Repos/aws-eks-devops-project/ansible"
 
 # SSH details
 ANSIBLE_KEY="$HOME/.ssh/deployer-one"
 ANSIBLE_USER="ec2-user"
+SSH_OPTS="-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+PROXY_OPTS="-o ProxyCommand=ssh -i $ANSIBLE_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p $ANSIBLE_USER@"
 
+# ──────────────────────────────────────────────
 # Function to display usage
 usage() {
-    echo "Usage: $0 [apply|destroy]"
-    echo "  apply   - Create infrastructure and deploy Jenkins"
-    echo "  destroy - Destroy all infrastructure"
+    echo "Usage: $0 [apply|destroy <servers|eks|all>]"
+    echo "  apply           - Create infrastructure and deploy Jenkins"
+    echo "  destroy servers - Destroy servers only"
+    echo "  destroy eks     - Destroy EKS only"
+    echo "  destroy all     - Destroy everything (servers + EKS)"
     exit 1
 }
 
-# Function to run Terraform apply
+# ──────────────────────────────────────────────
+# Terraform Apply
+# In your terraform_apply() function, add this after servers are created:
+
 terraform_apply() {
-    echo "=== Running Terraform Apply ==="
+    echo "=== Running Terraform Apply (EKS) ==="
     cd "$EKS_DIR"
-    terraform init
-    terraform apply -auto-approve
-}
-# Function to run Terraform apply
-terraform_apply() {
-    echo "=== Running Terraform Apply ==="
+    terraform init -input=false
+    terraform apply -auto-approve -var="create_access_entries=false"
+
+    echo "=== Running Terraform Apply (servers-setup) ==="
     cd "$TERRAFORM_DIR"
-    terraform init
+    terraform init -input=false
     terraform apply -auto-approve
 
-    # Step 2: Get Ansible EC2 public IP from Terraform
-    ANSIBLE_HOST=$(terraform output -raw ansible_public_ip)
-    echo "Ansible EC2 public IP: $ANSIBLE_HOST"
+    # NOW create the access entries since IAM role exists
+    echo "=== Creating EKS Access Entries ==="
+    cd "$EKS_DIR"
+    terraform apply -auto-approve -var="create_access_entries=true"
+
+    # Step 1: Get bastion public IP and Ansible private IP
+    BASTION_IP=$(terraform output -raw bastion_public_ip)
+    ANSIBLE_PRIVATE_IP=$(terraform output -raw ansible_private_ip)
+    echo "Bastion IP: $BASTION_IP"
+    echo "Ansible private IP: $ANSIBLE_PRIVATE_IP"
+
+    # Also get kubeconfig path from Terraform (EKS module output)
+    KUBECONFIG_FILE=$(cd "$EKS_DIR" && terraform output -raw kubeconfig_file)
+    echo "Kubeconfig file: $KUBECONFIG_FILE"
 
     # Wait for SSH to be available
-    echo "=== Waiting for SSH to be available ==="
-    sleep 10
+    echo "=== Waiting for SSH to bastion to be available ==="
+    sleep 15
 
-    # Step 3: Copy Ansible folder to EC2
-    echo "=== Copying Ansible folder to EC2 ==="
-    scp -i "$ANSIBLE_KEY" -o StrictHostKeyChecking=no -r "$ANSIBLE_DIR" "$ANSIBLE_USER@$ANSIBLE_HOST:~/"
-    sleep 10
+    # Step 2: Copy Ansible folder to Ansible host via bastion
+    echo "=== Copying Ansible folder to Ansible EC2 via bastion ==="
+    scp -i "$ANSIBLE_KEY" $SSH_OPTS \
+        -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
+        -r "$ANSIBLE_DIR" "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP:~/"
 
-    # Step 4: Copy SSH key separately
-    echo "=== Copying SSH key ==="
-    scp -i "$ANSIBLE_KEY" -o StrictHostKeyChecking=no "$ANSIBLE_KEY" "$ANSIBLE_USER@$ANSIBLE_HOST:~/ansible/"
-    sleep 5
+    # Step 2.5: Ensure .kube folder exists and copy kubeconfig
+    echo "=== Copying kubeconfig file to Ansible EC2 via bastion ==="
+    ssh -i "$ANSIBLE_KEY" $SSH_OPTS \
+        -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
+        "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP" "mkdir -p ~/.kube && chmod 700 ~/.kube"
 
-    # Step 5: Prepare SSH key on Ansible EC2 and run playbook
-    echo "=== Setting up SSH key and running Jenkins playbook on Ansible EC2 ==="
-    ssh -tt -i "$ANSIBLE_KEY" -o StrictHostKeyChecking=no "$ANSIBLE_USER@$ANSIBLE_HOST" << 'EOF'
-set -e  # Exit on error in remote session
+    scp -i "$ANSIBLE_KEY" $SSH_OPTS \
+        -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
+        "$KUBECONFIG_FILE" "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP:~/.kube/config"
 
-# Verify what was copied
+    # Step 3: Copy SSH key separately
+    echo "=== Copying SSH key to Ansible EC2 via bastion ==="
+    scp -i "$ANSIBLE_KEY" $SSH_OPTS \
+        -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
+        "$ANSIBLE_KEY" "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP:~/ansible/"
+
+    # Step 4: Prepare SSH key on Ansible EC2 and run playbook
+    echo "=== Running Jenkins playbook on Ansible EC2 ==="
+    ssh -tt -i "$ANSIBLE_KEY" $SSH_OPTS \
+        -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
+        "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP" << 'EOF'
+set -e
+
 echo "=== Remote Ansible structure ==="
 ls -la ~/ansible/
 
@@ -63,12 +94,12 @@ ls -la ~/ansible/
 mkdir -p ~/.ssh
 chmod 700 ~/.ssh
 
-# Copy the key to proper location from ansible folder
+# Copy key to proper location
 cp ~/ansible/deployer-one ~/.ssh/id_rsa
-rm -rf ~/ansible/deployer-one
+rm -f ~/ansible/deployer-one
 chmod 600 ~/.ssh/id_rsa
 
-# Start ssh-agent and add the key
+# Start ssh-agent and add key
 eval "$(ssh-agent -s)"
 ssh-add ~/.ssh/id_rsa
 
@@ -80,37 +111,65 @@ EOF
     echo "✅ Ansible Deployments executed successfully from Ansible EC2!"
 }
 
-# Function to run Terraform destroy
-terraform_destroy() {
-    echo "=== Running Terraform Destroy ==="
+# ──────────────────────────────────────────────
+# Terraform Destroy (Servers only)
+terraform_destroy_servers() {
+    echo "=== Running Terraform Destroy (servers) ==="
     cd "$TERRAFORM_DIR"
     terraform destroy -auto-approve
+    echo "✅ Servers destroyed successfully!"
+}
+
+# Terraform Destroy (EKS only)
+terraform_destroy_eks() {
+    echo "=== Running Terraform Destroy (EKS) ==="
+    cd "$EKS_DIR"
+    terraform destroy -auto-approve
+    echo "✅ EKS destroyed successfully!"
+}
+
+# Terraform Destroy (All)
+terraform_destroy_all() {
+    echo "=== Destroying Servers first ==="
+    terraform_destroy_servers
+
+    echo "=== Destroying EKS next ==="
+    terraform_destroy_eks
+
     echo "✅ All infrastructure destroyed successfully!"
 }
 
+# ──────────────────────────────────────────────
 # Main script logic
 if [ $# -eq 0 ]; then
-    # No arguments provided, ask user
     echo "Please choose an action:"
     echo "1) Apply - Create infrastructure and deploy Jenkins"
-    echo "2) Destroy - Destroy all infrastructure"
-    echo "3) Quit"
-    read -p "Enter your choice (1-3): " choice
+    echo "2) Destroy Servers only"
+    echo "3) Destroy EKS only"
+    echo "4) Destroy All"
+    echo "5) Quit"
+    read -p "Enter your choice (1-5): " choice
 
     case $choice in
         1) terraform_apply ;;
-        2) terraform_destroy ;;
-        3) echo "Exiting..." ; exit 0 ;;
+        2) terraform_destroy_servers ;;
+        3) terraform_destroy_eks ;;
+        4) terraform_destroy_all ;;
+        5) echo "Exiting..." ; exit 0 ;;
         *) echo "Invalid choice!" ; usage ;;
     esac
 else
-    # Argument provided
     case $1 in
         apply|create|deploy)
             terraform_apply
             ;;
         destroy|delete|remove)
-            terraform_destroy
+            case $2 in
+                servers) terraform_destroy_servers ;;
+                eks) terraform_destroy_eks ;;
+                all) terraform_destroy_all ;;
+                *) echo "Invalid destroy option: $2" ; usage ;;
+            esac
             ;;
         *)
             echo "Invalid argument: $1"

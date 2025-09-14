@@ -1,6 +1,7 @@
 # site.yml
 - import_playbook: playbooks/install-controller.yml
 - import_playbook: playbooks/install-jenkins.yml
+- import_playbook: playbooks/eks-access.yml
 - import_playbook: playbooks/install-nginx-ingress.yml
 - import_playbook: playbooks/install-nexus.yml
 - import_playbook: playbooks/deploy-app.yml

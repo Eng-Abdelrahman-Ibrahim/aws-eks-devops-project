@@ -16,6 +16,7 @@ data "template_file" "kubeconfig" {
     eks_name     = module.eks.cluster_name
     eks_endpoint = module.eks.cluster_endpoint
     eks_ca       = module.eks.cluster_certificate_authority_data
+    eks_region   = var.eks_region       # <- make sure this exists
   }
 }
 

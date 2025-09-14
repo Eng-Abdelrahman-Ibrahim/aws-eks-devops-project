@@ -1,32 +1,41 @@
-vars_files:
-    - vars/main.yml  # ⬅️ ADD THIS LINE
-roles:
-- eks-access
-
-- name: Configure AWS CLI with instance profile
-  ansible.builtin.shell: |
-    aws configure set region {{ eks_region }}
-    aws configure set output json
+---
+- name: Ensure pip3 is installed
+  ansible.builtin.package:
+    name: python3-pip
+    state: present
   become: yes
 
-- name: Update kubeconfig for EKS cluster
-  ansible.builtin.shell: |
-    aws eks update-kubeconfig \
-      --name {{ eks_cluster_name }} \
-      --region {{ eks_region }} \
-      --role-arn {{ eks_role_arn }}
-  environment:
-    AWS_ACCOUNT_ID: "{{ aws_account_id }}"
+- name: Ensure yq (YAML processor) is installed
+  ansible.builtin.get_url:
+    url: https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+    dest: /usr/local/bin/yq
+    mode: '0755'
   become: yes
-  become_user: ec2-user
-  args:
-    creates: "/home/ec2-user/.kube/config"
+
+- name: Ensure .kube directory exists
+  file:
+    path: /home/ec2-user/.kube
+    state: directory
+    mode: '0700'
+    owner: ec2-user
+    group: ec2-user
+
+- name: Ensure kubeconfig file exists (copied manually)
+  copy:
+    src: /home/ec2-user/.kube/config
+    dest: /home/ec2-user/.kube/config
+    mode: '0600'
+    owner: ec2-user
+    group: ec2-user
 
 - name: Test Kubernetes access
   ansible.builtin.command: kubectl get nodes
   register: kubectl_result
   changed_when: false
+  retries: 5
+  delay: 10
+  until: kubectl_result.rc == 0
 
 - name: Show Kubernetes nodes
   ansible.builtin.debug:
-    msg: "{{ kubectl_result.stdout }}"
+    msg: "{{ kubectl_result.stdout_lines }}"

@@ -20,10 +20,16 @@ module "eks" {
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
 
+  endpoint_public_access  = true
+  endpoint_private_access = true
+  
+  # Reference the security group defined locally in this project
+  additional_security_group_ids = [aws_security_group.eks_to_ansible_access.id]
+
   self_managed_node_groups = {
-    example = {
+    myapp-nodes = {
       ami_type      = "AL2023_x86_64_STANDARD"
-      instance_type = "m6i.large"
+      instance_type = "t3.medium"
 
       min_size = 2
       max_size = 3
@@ -41,5 +47,8 @@ module "eks" {
   }
 }
 
+
 # Get current AWS account ID
 data "aws_caller_identity" "current" {}
+
+

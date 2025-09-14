@@ -13,6 +13,11 @@ output "eks_cluster_version" {
   value       = module.eks.cluster_version
 }
 
+output "eks_cluster_arn" {
+  description = "EKS cluster ARN"
+  value       = module.eks.cluster_arn
+}
+
 ################################################################################
 # VPC Outputs
 ################################################################################
@@ -45,6 +50,11 @@ output "nat_gateway_ids" {
 output "availability_zones" {
   description = "Availability Zones used in this VPC"
   value       = local.azs
+}
+
+output "ansible_security_group_id" {
+  description = "The ID of the security group for the Ansible instance"
+  value       = aws_security_group.ansible_sg.id
 }
 
 # Optional: kubeconfig content if you generate it via local_file
