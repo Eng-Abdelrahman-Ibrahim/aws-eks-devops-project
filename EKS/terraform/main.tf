@@ -1,3 +1,5 @@
+#EKS/terraform/main.tf
+
 provider "aws" {
   region = local.region
 }

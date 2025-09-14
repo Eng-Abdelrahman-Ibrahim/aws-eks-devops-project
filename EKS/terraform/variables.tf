@@ -1,3 +1,5 @@
+#EKS/terraform/variables.tf
+
 variable "eks_region" {
   description = "AWS region of the EKS cluster"
   type        = string

@@ -1,4 +1,4 @@
-# ──────────────────────────────────────────────
+# #EKS/terraform/kubernetes.tf
 # Kubernetes provider using IAM-based authentication
 provider "kubernetes" {
   host                   = module.eks.cluster_endpoint

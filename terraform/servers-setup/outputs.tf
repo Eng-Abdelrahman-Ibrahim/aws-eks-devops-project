@@ -1,3 +1,5 @@
+#terraform/servers-setup/outputs.tf
+
 output "bastion_public_ip" {
   description = "Public IP of the bastion (SSH jump)"
   value       = aws_instance.bastion.public_ip

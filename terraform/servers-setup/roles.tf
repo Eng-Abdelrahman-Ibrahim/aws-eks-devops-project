@@ -1,3 +1,5 @@
+#terraform/servers-setup/roles.tf
+
 # IAM Role for Ansible EC2 to access EKS + SSM
 resource "aws_iam_role" "ansible_role" {
   name = "ansible-eks-role"

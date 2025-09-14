@@ -1,3 +1,5 @@
+#terraform/servers-setup/main.tf
+
 provider "aws" {
   region = "us-east-1"
 }
@@ -194,11 +196,6 @@ resource "aws_instance" "jenkins" {
 
   tags = { Name = "jenkins-server" }
 
-  user_data = <<-EOF
-              #!/bin/bash
-              dnf update -y
-              dnf install -y java-11-openjdk-headless
-              EOF
 }
 
 # ---------------------

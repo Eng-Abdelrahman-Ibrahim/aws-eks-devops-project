@@ -1,13 +1,4 @@
-# Read the template
-#data "template_file" "kubeconfig" {
-#  template = file("${path.module}/templates/kubeconfig.yml.j2")
-
-#  vars = {
-#    eks_name     = module.eks.cluster_name
-#    eks_endpoint = data.aws_eks_cluster.this.endpoint
-#    eks_ca       = base64decode(data.aws_eks_cluster.this.certificate_authority[0].data)
-#  }
-#}
+#EKS/terraform/kubeconfig.tf
 
 data "template_file" "kubeconfig" {
   template = file("${path.module}/templates/kubeconfig.yml.j2")
