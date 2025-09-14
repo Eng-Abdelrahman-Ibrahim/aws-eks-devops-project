@@ -1,55 +1,109 @@
-# Terraform
+# ======================
+# TERRAFORM
+# ======================
+**/.terraform/*
 *.tfstate
-*.tfstate.backup
-.terraform/
+*.tfstate.*
+*.backup
+.terraform.lock.hcl  # Actually, KEEP this one committed!
 terraform.tfvars
 *.tfvars
 override.tf
 override.tf.json
 *.tfplan
+.terraformrc
 
-# Python
+# ======================
+# KUBERNETES/EKS
+# ======================
+.kube/
+*.kubeconfig
+kubeconfig*
+
+# ======================
+# PYTHON
+# ======================
 __pycache__/
-*.pyc
+*.py[cod]
+*.pyo
+*.so
+.Python
 .venv/
 env/
 venv/
+ENV/
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Docker
+# ======================
+# DOCKER
+# ======================
 *.log
 docker-compose.override.yml
+.dockerignore
 
-# Helm
+# ======================
+# HELM
+# ======================
 charts/
 *.tgz
 
-# Ansible
+# ======================
+# ANSIBLE
+# ======================
 *.retry
+.ansible/
 
-# Secrets - MOST IMPORTANT SECTION
+# ======================
+# SECRETS - NEVER COMMIT
+# ======================
 .env
 .env.*
+.env.local
 aws_credentials
-kubeconfig
 *.pem
 *.key
 *.cert
+*.crt
 credentials
 secrets*
+*.secret
+*.token
+access_tokens
 
-# Editor and IDE
+# ======================
+# EDITOR and IDE
+# ======================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+*.sublime-*
 
-# OS generated files
+# ======================
+# OS GENERATED FILES
+# ======================
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
-# Logs and temp files
+# ======================
+# LOGS and TEMP FILES
+# ======================
 logs/
 *.log
 tmp/
 temp/
+*.tmp
+*.temp
+
+# ======================
+# TERRAFORM PROVIDER CACHE
+# ======================
+.terraform.providers/
+.terraform.d/
