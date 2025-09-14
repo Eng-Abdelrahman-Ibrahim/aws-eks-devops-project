@@ -11,7 +11,6 @@ data "template_file" "kubeconfig" {
   }
 }
 
-
 # Write kubeconfig to ~/.kube/config
 resource "local_file" "kubeconfig" {
   content  = data.template_file.kubeconfig.rendered

@@ -32,17 +32,12 @@ terraform_apply() {
     echo "=== Running Terraform Apply (EKS) ==="
     cd "$EKS_DIR"
     terraform init -input=false
-    terraform apply -auto-approve -var="create_access_entries=false"
+    terraform apply -auto-approve
 
     echo "=== Running Terraform Apply (servers-setup) ==="
     cd "$TERRAFORM_DIR"
     terraform init -input=false
     terraform apply -auto-approve
-
-    # NOW create the access entries since IAM role exists
-    echo "=== Creating EKS Access Entries ==="
-    cd "$EKS_DIR"
-    terraform apply -auto-approve -var="create_access_entries=true"
 
     # Step 1: Get bastion public IP and Ansible private IP
     BASTION_IP=$(terraform output -raw bastion_public_ip)

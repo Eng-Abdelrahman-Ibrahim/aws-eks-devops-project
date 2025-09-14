@@ -7,6 +7,38 @@ module "eks" {
   name               = "${local.name}"
   kubernetes_version = "1.33"
 
+  # Adds the current caller identity as an administrator via cluster access entry
+  enable_cluster_creator_admin_permissions = true
+  authentication_mode = "API_AND_CONFIG_MAP"
+
+
+access_entries = {
+    # Access entry for your Admin-user
+    AdminUser = {
+      principal_arn = "arn:aws:iam::068732175550:user/Admin-user"
+      policy_associations = {
+        AdminPolicy = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
+    },
+    # Access entry for the Ansible role
+    AnsibleRole = {
+      principal_arn = "arn:aws:iam::068732175550:role/ansible-eks-role"
+      policy_associations = {
+        AdminPolicy = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
+    }
+  }
+
   # EKS Addons
   addons = {
     coredns = {}
@@ -48,6 +80,7 @@ module "eks" {
    }
   }
 }
+
 
 
 # Get current AWS account ID

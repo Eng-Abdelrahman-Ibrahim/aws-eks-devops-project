@@ -16,31 +16,6 @@ resource "aws_iam_role" "ansible_role" {
   })
 }
 
-# Inline policy to allow eks:DescribeCluster on your cluster (least-privilege)
-resource "aws_iam_role_policy" "eks_describe" {
-  name = "eks-describe-cluster"
-  role = aws_iam_role.ansible_role.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "eks:DescribeCluster"
-        ]
-        Resource = "arn:aws:eks:us-east-1:068732175550:cluster/myapp-eks"
-      }
-    ]
-  })
-}
-
-# Attach managed policies needed: EKS cluster access, SSM agent, EC2/VPC as you requested
-resource "aws_iam_role_policy_attachment" "eks_cluster" {
-  role       = aws_iam_role.ansible_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-}
-
 resource "aws_iam_role_policy_attachment" "ssm" {
   role       = aws_iam_role.ansible_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
