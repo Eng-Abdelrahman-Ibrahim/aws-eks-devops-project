@@ -20,6 +20,12 @@ output "eks_cluster_arn" {
   value       = module.eks.cluster_arn
 }
 
+output "ansible_iam_instance_profile_name" {
+  value       = aws_iam_instance_profile.ansible_profile.name
+  description = "Name of the IAM instance profile for Ansible EC2"
+}
+
+
 ################################################################################
 # VPC Outputs
 ################################################################################
@@ -64,4 +70,12 @@ output "kubeconfig_file" {
   description = "Path to the generated kubeconfig file"
   value       = local_file.kubeconfig.filename
   sensitive   = true
+}
+
+# ───────────────────────────────
+# Output the LoadBalancer hostname
+# ───────────────────────────────
+output "nginx_ingress_lb_hostname" {
+  description = "The hostname of the NGINX Ingress LoadBalancer"
+  value       = data.kubernetes_service.nginx_lb.status[0].load_balancer[0].ingress[0].hostname
 }

@@ -1,17 +1,14 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: myapp-ingress
-  namespace: {{ namespace }}
+  name: app-ingress
+  namespace: eks-build
   annotations:
     kubernetes.io/ingress.class: nginx
-    nginx.ingress.kubernetes.io/affinity: "cookie"
-    nginx.ingress.kubernetes.io/session-cookie-name: "myapp-session"
-    nginx.ingress.kubernetes.io/session-cookie-hash: "sha1"
-    nginx.ingress.kubernetes.io/health-check-path: "/health"
+    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   rules:
-    - host: {{ ingress_host }}
+    - host: "app.a6543e128343244c1a7a2b0a7db1a20c-5be49b2ff0db882e.elb.us-east-1.amazonaws.com"  # ← DIFFERENT hostname
       http:
         paths:
           - path: /
@@ -21,3 +18,10 @@ spec:
                 name: frontend
                 port:
                   number: 80
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8080

@@ -15,11 +15,6 @@ output "ansible_ssm_instance_id" {
   value       = aws_instance.ansible_machine.id
 }
 
-output "ansible_iam_role_arn" {
-  description = "The ARN of the IAM role for the Ansible EC2 instance"
-  value       = aws_iam_role.ansible_role.arn
-}
-
 output "jenkins_public_ip" {
   description = "Public IP of the Jenkins EC2 instance"
   value       = aws_eip.jenkins_eip.public_ip
@@ -37,8 +32,15 @@ output "ssh_bastion_command" {
 
 output "ssh_ansible_via_bastion" {
   description = "SSH to the private Ansible machine via the bastion host"
-  value       = "ssh -tt -i ~/.ssh/deployer-one -o \"ProxyCommand=ssh -i ~/.ssh/deployer-one -W %h:%p ec2-user@${aws_instance.bastion.public_ip}\" ec2-user@${aws_instance.ansible_machine.private_ip}"
+  value = <<EOT
+ssh -tt -i ~/.ssh/deployer-one \
+  -o StrictHostKeyChecking=no \
+  -o UserKnownHostsFile=/dev/null \
+  -o ProxyCommand="ssh -i ~/.ssh/deployer-one -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p ec2-user@${aws_instance.bastion.public_ip}" \
+  ec2-user@${aws_instance.ansible_machine.private_ip}
+EOT
 }
+
 
 #   aws ssm start-session --target <ansible_ssm_instance_id>
 #

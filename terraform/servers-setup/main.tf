@@ -30,6 +30,11 @@ data "aws_ami" "amazon_linux_2023" {
     name   = "name"
     values = ["al2023-ami-*-x86_64"]
   }
+
+  filter {
+    name   = "block-device-mapping.volume-size"
+    values = ["8"] 
+  }
 }
 
 # ---------------------
@@ -91,7 +96,6 @@ resource "aws_security_group" "jenkins_sg" {
     protocol    = "tcp"
     security_groups = [
       aws_security_group.bastion_sg.id,
-      # <-- CORRECTED: Uses the remote state output for Ansible SG
       data.terraform_remote_state.eks_vpc.outputs.ansible_security_group_id
     ]
   }
@@ -162,7 +166,8 @@ resource "aws_instance" "ansible_machine" {
   instance_type          = "t3.medium"
   key_name               = aws_key_pair.deployer_one.key_name
   vpc_security_group_ids = [data.terraform_remote_state.eks_vpc.outputs.ansible_security_group_id]
-  iam_instance_profile   = aws_iam_instance_profile.ansible_profile.name
+  # ✅ Use the instance profile from EKS
+  iam_instance_profile = data.terraform_remote_state.eks_vpc.outputs.ansible_iam_instance_profile_name
   subnet_id              = element(data.terraform_remote_state.eks_vpc.outputs.private_subnets, 0)
 
   root_block_device {

@@ -1,16 +1,17 @@
-backend:
-  image: "{{ backend_image | default('nexus.local/backend:latest') }}"
-frontend:
-  image: "{{ frontend_image | default('nexus.local/frontend:latest') }}"
+#vars/main.yml
+
+backend_image: "nexus-service.eks-build.svc.cluster.local:8081/docker-hosted/devops-backend:latest"
+frontend_image: "nexus-service.eks-build.svc.cluster.local:8081/docker-hosted/devops-frontend:latest"
+
 eks_cluster_name: myapp-eks
 jenkins_plugins:
- - git
- - workflow-aggregator   # Pipeline
- - credentials-binding
- - configuration-as-code
- - docker-plugin
- - kubernetes
- - blueocean
+  - git
+  - workflow-aggregator
+  - credentials-binding
+  - configuration-as-code
+  - docker-plugin
+  - kubernetes
+  - blueocean
 
 aws_account_id: "068732175550"
 eks_region: us-east-1

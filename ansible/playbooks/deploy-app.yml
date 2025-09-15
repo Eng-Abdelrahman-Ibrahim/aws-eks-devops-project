@@ -3,6 +3,17 @@
   hosts: localhost
   connection: local
   gather_facts: no
+  vars_files:
+    - ../vars/main.yml
+
+  pre_tasks:
+    - name: Ensure required Python packages are installed
+      pip:
+        name:
+          - kubernetes
+          - boto3
+          - botocore
+        executable: pip3  
 
   roles:
     - k8s

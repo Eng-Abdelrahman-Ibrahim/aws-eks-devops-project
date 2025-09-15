@@ -31,10 +31,8 @@
 - name: Test Kubernetes access
   ansible.builtin.command: kubectl get nodes
   register: kubectl_result
-  changed_when: false
-  retries: 5
-  delay: 10
-  until: kubectl_result.rc == 0
+  environment:
+    KUBECONFIG: /home/ec2-user/.kube/config
 
 - name: Show Kubernetes nodes
   ansible.builtin.debug:

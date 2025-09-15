@@ -1,25 +1,46 @@
+# Backend Service
 apiVersion: v1
 kind: Service
 metadata:
-  name: myapp-service
-  namespace: app
+  name: backend
+  namespace: eks-build
 spec:
   selector:
-    app: myapp
+    app: backend
   ports:
-    - port: 80
+    - name: http
+      port: 8080
       targetPort: 8080
   type: ClusterIP
+
 ---
+# Frontend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: eks-build
+spec:
+  selector:
+    app: frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+
+---
+# PostgreSQL Service
 apiVersion: v1
 kind: Service
 metadata:
   name: postgres
-  namespace: app
+  namespace: eks-build
 spec:
   selector:
     app: postgres
   ports:
-    - port: 5432
+    - name: postgres
+      port: 5432
       targetPort: 5432
-  clusterIP: None  # required for StatefulSet
+  clusterIP: None

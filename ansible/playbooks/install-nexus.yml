@@ -4,7 +4,16 @@
   gather_facts: no
   connection: local
 
+  pre_tasks:
+    - name: Ensure kubernetes python client is installed
+      pip:
+        name:
+          - kubernetes
+          - openshift
+        executable: pip3
+
   tasks:
     - name: Include nexus role
       include_role:
         name: nexus
+

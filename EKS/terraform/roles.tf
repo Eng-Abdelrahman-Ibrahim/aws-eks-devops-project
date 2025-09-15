@@ -1,21 +1,22 @@
-#terraform/servers-setup/roles.tf
+# EKS/terraform/eks-access.tf
 
-# IAM Role for Ansible EC2 to access EKS + SSM
+# -------------------------------
+# Ansible IAM Role for EC2
+# -------------------------------
 resource "aws_iam_role" "ansible_role" {
   name = "ansible-eks-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Effect    = "Allow"
-        Principal = { Service = "ec2.amazonaws.com" }
-        Action    = "sts:AssumeRole"
-      }
-    ]
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
   })
 }
 
+# Attach policies to Ansible role
 resource "aws_iam_role_policy_attachment" "ssm" {
   role       = aws_iam_role.ansible_role.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
@@ -36,6 +37,3 @@ resource "aws_iam_instance_profile" "ansible_profile" {
   name = "ansible-eks-profile"
   role = aws_iam_role.ansible_role.name
 }
-
-
-
