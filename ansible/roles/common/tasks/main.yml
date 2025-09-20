@@ -12,6 +12,55 @@
   ansible.builtin.yum:
     name: unzip
     state: present
+    
+# ========================================
+# ADD DOCKER INSTALLATION HERE
+# ========================================
+
+- name: Install Docker dependencies
+  ansible.builtin.yum:
+    name:
+      - yum-utils
+      - device-mapper-persistent-data
+      - lvm2
+    state: present
+
+- name: Add Docker CE repository
+  ansible.builtin.yum_repository:
+    name: docker-ce-stable
+    description: Docker CE Stable - $basearch
+    baseurl: https://download.docker.com/linux/centos/$releasever/$basearch/stable
+    gpgcheck: yes
+    gpgkey: https://download.docker.com/linux/centos/gpg
+    enabled: yes
+
+- name: Install Docker CE
+  ansible.builtin.yum:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+
+- name: Start and enable Docker service
+  ansible.builtin.systemd:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Add current user to docker group
+  ansible.builtin.user:
+    name: "{{ ansible_user | default('ec2-user') }}"
+    groups: docker
+    append: yes
+  notify: restart_docker
+
+- name: Create docker group if it doesn't exist
+  ansible.builtin.group:
+    name: docker
+    state: present
 
 - name: Install AWS CLI v2
   ansible.builtin.get_url:
@@ -30,6 +79,13 @@
   command: /tmp/aws/install
   args:
     creates: /usr/local/bin/aws
+
+- name: Get AWS Account ID
+  shell: aws sts get-caller-identity --query Account --output text
+  register: aws_account_result
+
+- set_fact:
+    aws_account_id: "{{ aws_account_result.stdout }}"
 
 - name: Install kubectl
   shell: |

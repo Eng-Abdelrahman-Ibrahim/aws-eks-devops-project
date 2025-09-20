@@ -1,3 +1,5 @@
+#ansible/roles/k8s/tasks/templates/ingress.yml.j2
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -8,7 +10,7 @@ metadata:
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   rules:
-    - host: "app.a6543e128343244c1a7a2b0a7db1a20c-5be49b2ff0db882e.elb.us-east-1.amazonaws.com"  # ← DIFFERENT hostname
+    - host: "app.{{ nginx_lb_hostname }}"
       http:
         paths:
           - path: /

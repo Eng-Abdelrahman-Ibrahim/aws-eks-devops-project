@@ -1,21 +1,11 @@
----
-# ---------------- Docker Registry Secret ----------------
-apiVersion: v1
-kind: Secret
-metadata:
-  name: nexus-credentials
-  namespace: eks-build
-type: kubernetes.io/dockerconfigjson
-data:
-  .dockerconfigjson: "{{ lookup('file', 'dockerconfig.json') | b64encode }}"
-
+#ansible/roles/k8s/tasks/templates/app-deployment.yml.j2
 ---
 # ---------------- Backend Deployment ----------------
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: backend
-  namespace: eks-build
+  namespace: {{ app_namespace }}
 spec:
   replicas: 2
   selector:
@@ -30,7 +20,7 @@ spec:
         - name: nexus-credentials
       containers:
         - name: backend
-          image: "{{ backend_image }}"
+          image: "{{ nexus_registry_url }}/{{ nexus_docker_repo }}/{{ backend_name }}:{{ image_tag }}"
           ports:
             - containerPort: 8080
           envFrom:
@@ -40,7 +30,7 @@ spec:
                 name: app-secrets
           env:
             - name: SPRING_DATASOURCE_URL
-              value: "jdbc:postgresql://postgres.eks-build.svc.cluster.local:5432/myappdb"
+              value: "jdbc:postgresql://postgres.{{ app_namespace }}.svc.cluster.local:5432/myappdb"
 
 ---
 # ---------------- Frontend Deployment ----------------
@@ -48,7 +38,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
-  namespace: eks-build
+  namespace: {{ app_namespace }}
 spec:
   replicas: 2
   selector:
@@ -63,9 +53,9 @@ spec:
         - name: nexus-credentials
       containers:
         - name: frontend
-          image: "{{ frontend_image }}"
+          image: "{{ nexus_registry_url }}/{{ nexus_docker_repo }}/{{ frontend_name }}:{{ image_tag }}"
           ports:
             - containerPort: 80
           env:
             - name: REACT_APP_API_URL
-              value: "http://backend.eks-build.svc.cluster.local:8080"
+              value: "http://backend.{{ app_namespace }}.svc.cluster.local:8080"

@@ -27,7 +27,9 @@ resource "helm_release" "nginx_ingress" {
       controller = {
         replicaCount = 2
         config = {
-          "proxy-body-size" = "500m"
+          "proxy-body-size" = "1g"
+           "proxy-read-timeout": 600       # 10 minutes read timeout
+           "proxy-send-timeout": 600       # 10 minutes send timeout
         }
         service = {
           type = "LoadBalancer"
@@ -50,7 +52,7 @@ resource "helm_release" "nginx_ingress" {
 # ───────────────────────────────
 data "kubernetes_service" "nginx_lb" {
     provider = kubernetes.eks
-    
+
   metadata {
     name      = "ingress-nginx-controller"
     namespace = kubernetes_namespace.ingress_nginx.metadata[0].name

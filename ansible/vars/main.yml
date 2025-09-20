@@ -1,9 +1,10 @@
-#vars/main.yml
+# ansible/vars/main.yml
 
-backend_image: "nexus-service.eks-build.svc.cluster.local:8081/docker-hosted/devops-backend:latest"
-frontend_image: "nexus-service.eks-build.svc.cluster.local:8081/docker-hosted/devops-frontend:latest"
-
+# EKS Configuration
 eks_cluster_name: myapp-eks
+eks_region: us-east-1
+
+# Jenkins Plugins
 jenkins_plugins:
   - git
   - workflow-aggregator
@@ -13,6 +14,11 @@ jenkins_plugins:
   - kubernetes
   - blueocean
 
-aws_account_id: "068732175550"
-eks_region: us-east-1
-eks_role_arn: "arn:aws:iam::{{ aws_account_id }}:role/ansible-eks-role"
+# Nexus Configuration
+nexus_docker_repo: "docker-hosted"
+backend_name: "devops-backend"
+frontend_name: "devops-frontend"
+image_tag: "latest"
+
+# Application namespace
+app_namespace: "eks-build"

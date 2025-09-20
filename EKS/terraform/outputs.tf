@@ -79,3 +79,7 @@ output "nginx_ingress_lb_hostname" {
   description = "The hostname of the NGINX Ingress LoadBalancer"
   value       = data.kubernetes_service.nginx_lb.status[0].load_balancer[0].ingress[0].hostname
 }
+
+output "nexus_registry_secret_name" {
+  value = kubernetes_secret.nexus_registry.metadata[0].name
+}
