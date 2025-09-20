@@ -111,6 +111,7 @@ EOF
 terraform_destroy_servers() {
     echo "=== Running Terraform Destroy (servers) ==="
     cd "$TERRAFORM_DIR"
+    terraform init
     terraform destroy -auto-approve
     echo "✅ Servers destroyed successfully!"
 }
@@ -119,6 +120,7 @@ terraform_destroy_servers() {
 terraform_destroy_eks() {
     echo "=== Running Terraform Destroy (EKS) ==="
     cd "$EKS_DIR"
+    terraform init
     terraform destroy -auto-approve
     echo "✅ EKS destroyed successfully!"
 }

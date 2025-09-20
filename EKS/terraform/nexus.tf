@@ -1,10 +1,14 @@
+#EKS/terraform/nexus.tf
+
 resource "kubernetes_namespace" "eks_build" {
+  provider = kubernetes.eks
   metadata {
     name = "eks-build"
   }
 }
 
 resource "kubernetes_deployment" "nexus" {
+  provider = kubernetes.eks
   metadata {
     name      = "nexus-deployment"
     namespace = kubernetes_namespace.eks_build.metadata[0].name
@@ -66,6 +70,7 @@ resource "kubernetes_deployment" "nexus" {
 }
 
 resource "kubernetes_service" "nexus" {
+  provider = kubernetes.eks
   metadata {
     name      = "nexus-service"
     namespace = kubernetes_namespace.eks_build.metadata[0].name
@@ -86,6 +91,7 @@ resource "kubernetes_service" "nexus" {
 }
 
 resource "kubernetes_ingress_v1" "nexus" {
+  provider = kubernetes.eks
   metadata {
     name      = "nexus-ingress"
     namespace = kubernetes_namespace.eks_build.metadata[0].name
@@ -98,7 +104,7 @@ resource "kubernetes_ingress_v1" "nexus" {
     rule {
       http {
         path {
-          path     = "/"
+          path      = "/"
           path_type = "Prefix"
 
           backend {
@@ -108,29 +114,34 @@ resource "kubernetes_ingress_v1" "nexus" {
                 number = 8081
               }
             }
-          }
+          } 
         }
       }
     }
   }
 }
 
+# -------------------------
+# Docker Registry Secret for Nexus
+# -------------------------
 resource "kubernetes_secret" "nexus_registry" {
+  provider   = kubernetes.eks
+  depends_on = [null_resource.wait_for_eks]
+
   metadata {
-    name      = "nexus-registry"
+    name      = "nexus-credentials"
     namespace = kubernetes_namespace.eks_build.metadata[0].name
   }
+
   type = "kubernetes.io/dockerconfigjson"
 
   data = {
-    ".dockerconfigjson" = base64encode(jsonencode({
+    ".dockerconfigjson" = jsonencode({
       auths = {
-        "nexus-service.eks-build.svc.cluster.local:8081" = {
-          username = "admin"       # Your Nexus username
-          password = "admin123"    # Your Nexus password
+        "nexus.${kubernetes_namespace.eks_build.metadata[0].name}.svc.cluster.local:8081" = {
+          auth = base64encode("admin:admin123")
         }
       }
-    }))
+    })
   }
 }
-

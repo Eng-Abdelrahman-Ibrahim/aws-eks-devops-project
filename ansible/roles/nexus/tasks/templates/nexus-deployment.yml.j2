@@ -14,12 +14,21 @@ spec:
       labels:
         app: nexus
     spec:
+      securityContext:
+        fsGroup: 200
       containers:
         - name: nexus
           image: sonatype/nexus3:latest
           ports:
             - containerPort: 8081
             - containerPort: 8082
+          env:
+            - name: NEXUS_SECURITY_RANDOMPASSWORD
+              value: "false"
+            - name: NEXUS_ADMIN_USERNAME
+              value: "admin"
+            - name: NEXUS_ADMIN_PASSWORD
+              value: "admin123"
           volumeMounts:
             - name: nexus-data
               mountPath: /nexus-data

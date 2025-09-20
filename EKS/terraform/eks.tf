@@ -25,6 +25,10 @@ resource "aws_launch_template" "myapp_nodes" {
   }
 }
 
+# ensure resources that talk to k8s wait until the EKS module finishes
+resource "null_resource" "wait_for_eks" {
+  depends_on = [module.eks]
+}
 
 
 module "eks" {
@@ -37,6 +41,8 @@ module "eks" {
   # Adds the current caller identity as an administrator via cluster access entry
   enable_cluster_creator_admin_permissions = true
   authentication_mode                      = "API_AND_CONFIG_MAP"
+
+  enable_irsa = true
 
 
   access_entries = {
@@ -104,8 +110,6 @@ module "eks" {
     }
   }
 }
-
-
 
 # Get current AWS account ID
 data "aws_caller_identity" "current" {}

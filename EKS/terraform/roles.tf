@@ -1,5 +1,3 @@
-# EKS/terraform/eks-access.tf
-
 # -------------------------------
 # Ansible IAM Role for EC2
 # -------------------------------
@@ -32,8 +30,15 @@ resource "aws_iam_role_policy_attachment" "vpc_access" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonVPCFullAccess"
 }
 
+resource "aws_iam_role_policy_attachment" "ebs_csi_attach" {
+  role       = aws_iam_role.ansible_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+}
+
 # Instance profile for EC2
 resource "aws_iam_instance_profile" "ansible_profile" {
   name = "ansible-eks-profile"
   role = aws_iam_role.ansible_role.name
 }
+
+

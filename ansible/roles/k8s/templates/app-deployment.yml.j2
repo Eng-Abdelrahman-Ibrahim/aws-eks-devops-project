@@ -1,19 +1,15 @@
-# Deployment
+---
+# ---------------- Docker Registry Secret ----------------
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nexus-credentials
+  namespace: eks-build
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: "{{ lookup('file', 'dockerconfig.json') | b64encode }}"
 
-- name: Create Docker registry secret for Nexus
-  kubernetes.core.k8s:
-    state: present
-    definition:
-      apiVersion: v1
-      kind: Secret
-      metadata:
-        name: nexus-credentials
-        namespace: eks-build
-      type: kubernetes.io/dockerconfigjson
-      data:
-        .dockerconfigjson: "{{ lookup('file', 'dockerconfig.json') | b64encode }}"
-
-
+---
 # ---------------- Backend Deployment ----------------
 apiVersion: apps/v1
 kind: Deployment
@@ -31,10 +27,10 @@ spec:
         app: backend
     spec:
       imagePullSecrets:
-      - name: nexus-credentials
+        - name: nexus-credentials
       containers:
         - name: backend
-          image: {{ backend_image }}
+          image: "{{ backend_image }}"
           ports:
             - containerPort: 8080
           envFrom:
@@ -45,6 +41,7 @@ spec:
           env:
             - name: SPRING_DATASOURCE_URL
               value: "jdbc:postgresql://postgres.eks-build.svc.cluster.local:5432/myappdb"
+
 ---
 # ---------------- Frontend Deployment ----------------
 apiVersion: apps/v1
@@ -63,10 +60,10 @@ spec:
         app: frontend
     spec:
       imagePullSecrets:
-      - name: nexus-credentials
+        - name: nexus-credentials
       containers:
         - name: frontend
-          image: {{ frontend_image }}
+          image: "{{ frontend_image }}"
           ports:
             - containerPort: 80
           env:
