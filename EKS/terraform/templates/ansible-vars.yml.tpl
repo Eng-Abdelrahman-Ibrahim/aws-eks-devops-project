@@ -10,8 +10,8 @@ aws_account_id: "${aws_account_id}"
 
 # Nexus URLs
 nexus_web_url: "${nginx_lb_hostname}/"
-nexus_docker_registry: "${nexus_docker_lb_hostname}:8081"
-nexus_registry_url: "${nexus_docker_lb_hostname}:8081"
+nexus_docker_registry: "${nexus_docker_lb_hostname}:8082"
+nexus_registry_url: "${nexus_docker_lb_hostname}:8082"
 
 # AWS resources
 eks_role_arn: "arn:aws:iam::${aws_account_id}:role/ansible-eks-role"

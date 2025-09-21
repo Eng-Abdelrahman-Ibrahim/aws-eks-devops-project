@@ -25,6 +25,11 @@ output "jenkins_private_ip" {
   value       = aws_instance.jenkins.private_ip
 }
 
+output "jenkins_url" {
+  description = "Jenkins web interface URL"
+  value       = "http://${aws_eip.jenkins_eip.public_ip}:8080"
+}
+
 output "ssh_bastion_command" {
   description = "SSH command to connect to the bastion host"
   value       = "ssh -i ~/.ssh/deployer-one ec2-user@${aws_instance.bastion.public_ip}"
@@ -41,6 +46,7 @@ ssh -tt -i ~/.ssh/deployer-one \
 EOT
 }
 
-
-#   aws ssm start-session --target <ansible_ssm_instance_id>
-#
+output "ssh_jenkins_from_ansible" {
+  description = "SSH to Jenkins from Ansible machine (run this from Ansible machine)"
+  value       = "ssh -i ~/.ssh/id_rsa ec2-user@${aws_instance.jenkins.private_ip}"
+}

@@ -1,3 +1,6 @@
+#ansible/roles/common/tasks/main.yml
+
+---
 - name: Update system packages
   ansible.builtin.yum:
     name: "*"
@@ -14,34 +17,13 @@
     state: present
     
 # ========================================
-# ADD DOCKER INSTALLATION HERE
+# DOCKER INSTALLATION FOR AMAZON LINUX 2023
 # ========================================
 
-- name: Install Docker dependencies
-  ansible.builtin.yum:
+- name: Install Docker (Amazon Linux 2023)
+  ansible.builtin.dnf:  # Use dnf instead of yum
     name:
-      - yum-utils
-      - device-mapper-persistent-data
-      - lvm2
-    state: present
-
-- name: Add Docker CE repository
-  ansible.builtin.yum_repository:
-    name: docker-ce-stable
-    description: Docker CE Stable - $basearch
-    baseurl: https://download.docker.com/linux/centos/$releasever/$basearch/stable
-    gpgcheck: yes
-    gpgkey: https://download.docker.com/linux/centos/gpg
-    enabled: yes
-
-- name: Install Docker CE
-  ansible.builtin.yum:
-    name:
-      - docker-ce
-      - docker-ce-cli
-      - containerd.io
-      - docker-buildx-plugin
-      - docker-compose-plugin
+      - docker
     state: present
 
 - name: Start and enable Docker service
@@ -55,7 +37,6 @@
     name: "{{ ansible_user | default('ec2-user') }}"
     groups: docker
     append: yes
-  notify: restart_docker
 
 - name: Create docker group if it doesn't exist
   ansible.builtin.group:

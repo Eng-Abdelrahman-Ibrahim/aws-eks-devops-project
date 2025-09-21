@@ -8,12 +8,22 @@ resource "aws_launch_template" "myapp_nodes" {
   name_prefix = "myapp-nodes-"
 
   user_data = base64encode(<<-EOT
-             #!/bin/bash
+              #!/bin/bash
               set -e
-              # AL2023 uses dnf, not yum, and containerd is available via standard repos
-              dnf install -y containerd
+              # Install EKS-supported containerd
+              dnf install -y yum-utils
+              yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+              dnf install -y containerd.io
+
+              # Configure containerd for CRI
+              mkdir -p /etc/containerd
+              containerd config default | tee /etc/containerd/config.toml
+              sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+
               systemctl enable containerd
-              systemctl start containerd
+              systemctl restart containerd
+
+              # Bootstrap EKS
               /etc/eks/bootstrap.sh ${local.name}
               EOT
   )
@@ -41,8 +51,8 @@ resource "aws_iam_role" "ebs_csi_driver_role" {
       Action = "sts:AssumeRoleWithWebIdentity"
       Condition = {
         StringEquals = {
-          "${replace(module.eks.oidc_provider_arn, "/^(.*provider/)/", "")}:sub": "system:serviceaccount:kube-system:ebs-csi-controller-sa"
-          "${replace(module.eks.oidc_provider_arn, "/^(.*provider/)/", "")}:aud": "sts.amazonaws.com"
+          "${replace(module.eks.oidc_provider_arn, "/^(.*provider/)/", "")}:sub" : "system:serviceaccount:kube-system:ebs-csi-controller-sa"
+          "${replace(module.eks.oidc_provider_arn, "/^(.*provider/)/", "")}:aud" : "sts.amazonaws.com"
         }
       }
     }]
@@ -132,7 +142,7 @@ module "eks" {
         AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
         AmazonEBSCSIDriverPolicy     = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
       }
-      
+
       tags = local.tags
     }
   }

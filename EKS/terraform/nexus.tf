@@ -242,8 +242,8 @@ resource "kubernetes_service" "nexus_docker_registry" {
 
     port {
       name        = "docker-registry"
-      port        = 8081
-      target_port = 8081
+      port        = 8082
+      target_port = 8082
       protocol    = "TCP"
     }
 
@@ -279,8 +279,8 @@ resource "kubernetes_secret" "nexus_registry" {
     ".dockerconfigjson" = jsonencode({
       auths = {
         # Use the Nexus Docker LoadBalancer hostname
-        "${data.kubernetes_service.nexus_docker_lb.status[0].load_balancer[0].ingress[0].hostname}:8081" = {
-          auth = base64encode("admin:admin123")
+        "${data.kubernetes_service.nexus_docker_lb.status[0].load_balancer[0].ingress[0].hostname}:8082" = {
+          auth = base64encode("admin:admin123") # Change to your username and password, or make it variable for security
         }
       }
     })

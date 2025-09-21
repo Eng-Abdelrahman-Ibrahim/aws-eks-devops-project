@@ -12,6 +12,7 @@ spec:
   resources:
     requests:
       storage: 5Gi
+  storageClassName: gp2-immediate
 
 ---
 # PostgreSQL StatefulSet
@@ -60,3 +61,4 @@ spec:
         resources:
           requests:
             storage: 5Gi
+        storageClassName: gp2-immediate
