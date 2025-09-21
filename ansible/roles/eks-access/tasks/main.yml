@@ -37,3 +37,53 @@
 - name: Show Kubernetes nodes
   ansible.builtin.debug:
     msg: "{{ kubectl_result.stdout_lines }}"
+
+# ========================================
+# CONFIGURE DOCKER FOR NEXUS REGISTRY
+# ========================================
+
+- name: Get Nexus registry hostname from Kubernetes service
+  ansible.builtin.command: >
+    kubectl get svc nexus-docker-service
+    -n eks-build
+    -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+    --kubeconfig /home/ec2-user/.kube/config
+  register: nexus_registry_cmd
+  changed_when: false
+
+- name: Set Nexus registry fact
+  ansible.builtin.set_fact:
+    nexus_registry: "{{ nexus_registry_cmd.stdout }}:8082"
+
+- name: Ensure Docker config directory exists
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    mode: '0755'
+
+- name: Configure Docker daemon.json with Nexus insecure registry
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    content: |
+      {
+        "insecure-registries": ["{{ nexus_registry }}"]
+      }
+    mode: '0644'
+
+- name: Restart Docker to apply new configuration
+  ansible.builtin.systemd:
+    name: docker
+    state: restarted
+    enabled: yes
+
+- name: Persist NEXUS_REGISTRY env var globally
+  ansible.builtin.copy:
+    dest: /etc/profile.d/nexus_registry.sh
+    content: |
+      export NEXUS_REGISTRY={{ nexus_registry }}
+    mode: '0644'
+
+- name: Show configured Nexus Registry
+  ansible.builtin.debug:
+    msg: "Registry URL: {{ nexus_registry }}"
+

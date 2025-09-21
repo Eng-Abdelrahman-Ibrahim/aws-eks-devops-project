@@ -117,7 +117,6 @@ resource "kubernetes_deployment" "nexus" {
             }
           }
 
-          # Temporarily disabled volume mount for testing
            volume_mount {
              mount_path = "/nexus-data"
              name       = "nexus-data"
@@ -147,7 +146,6 @@ resource "kubernetes_deployment" "nexus" {
           }
         }
 
-        # Temporarily disabled volume for testing
          volume {
            name = "nexus-data"
            persistent_volume_claim {
