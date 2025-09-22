@@ -11,7 +11,7 @@ pipeline {
         BACKEND_IMAGE = 'abdelrahmandevops/devops-app'
         FRONTEND_IMAGE = 'abdelrahmandevops/devops-frontend'
         BUILD_TAG = "build-${env.BUILD_NUMBER}"
-        DASHBOARD_API = "http://host.docker.internal:8080/api/deployments"
+        DASHBOARD_API = "http://host.docker.internal:8080/app/api/deployments"
         DOCKER_HOST = 'unix:///var/run/docker.sock'
 
         # Docker Hub credentials stored in Jenkins Credentials
@@ -21,7 +21,7 @@ pipeline {
         # Nexus credentials stored in Jenkins Credentials
         NEXUS_USER = credentials('Nexus_Username')
         NEXUS_PASS = credentials('Nexus_Password')
-        NEXUS_URL = 'nexus.local/repository/docker-hosted'
+        NEXUS_URL = 'nexus.local/repos  itory/docker-hosted'
 
         # Ansible SSH
         ANSIBLE_HOST = ''
@@ -94,6 +94,7 @@ pipeline {
                 sh """
                     docker build -t ${FRONTEND_IMAGE}:${BUILD_TAG} \
                         --build-arg BUILD_DIR=application/frontend/build \
+                        --build-arg REACT_APP_API_URL=http://${NEXUS_URL}/app/api \
                         ./application/frontend
                 """
             }

@@ -58,4 +58,4 @@ spec:
             - containerPort: 80
           env:
             - name: REACT_APP_API_URL
-              value: "http://backend.{{ app_namespace }}.svc.cluster.local:8080"
+              value: "http://{{ nginx_lb_hostname }}/app/api"

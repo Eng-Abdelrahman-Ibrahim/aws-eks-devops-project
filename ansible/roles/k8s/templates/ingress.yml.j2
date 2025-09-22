@@ -6,7 +6,7 @@ metadata:
   name: app-ingress
   namespace: eks-build
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   rules:
@@ -14,7 +14,7 @@ spec:
       http:
         paths:
           # Frontend
-          - path: /
+          - path: /app(/|$)(.*)
             pathType: Prefix
             backend:
               service:
@@ -22,7 +22,7 @@ spec:
                 port:
                   number: 80
           # Backend API
-          - path: /api
+          - path: /app/api(/|$)(.*)
             pathType: Prefix
             backend:
               service:
