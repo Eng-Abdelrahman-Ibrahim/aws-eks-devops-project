@@ -1,0 +1,23 @@
+#values-test.yaml
+namespace: test
+
+backend:
+  replicas: 2
+  image:
+    repository: "{{ nexus_registry_url }}/devops-backend"
+    tag: latest
+
+frontend:
+  replicas: 2
+  image:
+    repository: "{{ nexus_registry_url }}/devops-frontend"
+    tag: latest
+
+nginxLBHost: "{{ nginx_lb_hostname }}"
+
+configMapName: "app-config"
+secretName: "app-secrets"
+
+imagePullSecrets:
+  name: "nexus-credentials"
+  namespace: test   # must exist in test namespace

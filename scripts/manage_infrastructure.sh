@@ -6,6 +6,7 @@ set -e # Exit on any error
 EKS_DIR="$HOME/GitHub_Repos/aws-eks-devops-project/EKS/terraform"
 TERRAFORM_DIR="$HOME/GitHub_Repos/aws-eks-devops-project/terraform/servers-setup"
 ANSIBLE_DIR="$HOME/GitHub_Repos/aws-eks-devops-project/ansible"
+HELM_DIR="$HOME/GitHub_Repos/aws-eks-devops-project/helm"
 
 # SSH details
 ANSIBLE_KEY="$HOME/.ssh/deployer-one"
@@ -53,11 +54,16 @@ terraform_apply() {
     echo "=== Waiting for SSH to bastion to be available ==="
     sleep 15
 
-    # Step 2: Copy Ansible folder to Ansible host via bastion
+    # Step 2: Copy Ansible and Helm folders to Ansible host via bastion
     echo "=== Copying Ansible folder to Ansible EC2 via bastion ==="
     scp -i "$ANSIBLE_KEY" $SSH_OPTS \
         -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
         -r "$ANSIBLE_DIR" "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP:~/"
+
+    echo "=== Copying Helm folder to Ansible EC2 via bastion ==="
+    scp -i "$ANSIBLE_KEY" $SSH_OPTS \
+        -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
+        -r "$HELM_DIR" "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP:~/"
 
     # Step 2.5: Ensure .kube folder exists and copy kubeconfig
     echo "=== Copying kubeconfig file to Ansible EC2 via bastion ==="
@@ -98,7 +104,7 @@ chmod 600 ~/.ssh/id_rsa
 eval "$(ssh-agent -s)"
 ssh-add ~/.ssh/id_rsa
 
-# Run Jenkins playbook
+# Run initial playbooks
 cd ~/ansible
 ansible-playbook -i inventory/hosts.ini site.yml
 EOF

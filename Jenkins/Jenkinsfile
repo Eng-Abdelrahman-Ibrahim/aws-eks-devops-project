@@ -8,7 +8,7 @@ pipeline {
 
     environment {
         DOCKER_COMPOSE_FILE = './application/docker-compose.yaml'
-        BACKEND_IMAGE = 'abdelrahmandevops/devops-app'
+        BACKEND_IMAGE = 'abdelrahmandevops/devops-backend'
         FRONTEND_IMAGE = 'abdelrahmandevops/devops-frontend'
         BUILD_TAG = "build-${env.BUILD_NUMBER}"
         DASHBOARD_API = "http://host.docker.internal:8080/app/api/deployments"
@@ -127,18 +127,7 @@ pipeline {
             }
         }
 
-        stage('Terraform: Provision Amazon EKS cluster') {
-            steps {
-                dir('EKS/terraform') {
-                    sh """
-                        terraform init
-                        terraform apply -auto-approve \
-                            -var backend_image=${NEXUS_URL}/backend:${BUILD_TAG} \
-                            -var frontend_image=${NEXUS_URL}/frontend:${BUILD_TAG}
-                    """
-                }
-            }
-        }
+
         stages {
             stage('Get Ansible EC2 Public IP') {
                 steps {
@@ -159,9 +148,7 @@ pipeline {
                 sh """
                     ssh -i ${ANSIBLE_KEY} ${ANSIBLE_HOST} \
                     'cd ~/ansible && \
-                     ansible-playbook -i inventory playbooks/install-controller.yml && \
-                     ansible-playbook -i inventory playbooks/install-nexus.yml && \
-                     ansible-playbook -i inventory playbooks/deploy-app.yml --extra-vars "BACKEND_IMAGE=${NEXUS_URL}/backend:${BUILD_TAG} FRONTEND_IMAGE=${NEXUS_URL}/frontend:${BUILD_TAG}"'
+                     ansible-playbook -i inventory/hosts.ini playbooks/deploy-app.yml'
                 """
             }
         }

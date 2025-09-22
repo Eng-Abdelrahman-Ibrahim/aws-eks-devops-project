@@ -1,0 +1,21 @@
+#values-test.yaml
+namespace: test
+
+postgres:
+  replicas: 1
+  image:
+    repository: "postgres"
+    tag: "14"
+
+postgresConfig:
+  db: "myappdb"
+  user: "appuser"
+  password: "apppassword"
+
+storage:
+  size: "5Gi"
+  storageClassName: "gp2-immediate"
+
+imagePullSecrets:
+  name: "nexus-credentials"
+  namespace: test
