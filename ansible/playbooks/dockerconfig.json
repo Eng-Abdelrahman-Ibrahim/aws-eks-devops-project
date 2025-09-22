@@ -1,8 +1,0 @@
-{
-  "auths": {
-    "nexus-service.eks-build.svc.cluster.local:8081": {
-      "username": "admin",
-      "password": "admin123"
-    }
-  }
-}

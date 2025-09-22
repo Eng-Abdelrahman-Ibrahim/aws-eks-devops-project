@@ -5,15 +5,6 @@
   gather_facts: no
   vars_files:
     - ../vars/terraform-generated.yml
-
-  pre_tasks:
-    - name: Ensure required Python packages are installed
-      pip:
-        name:
-          - kubernetes
-          - boto3
-          - botocore
-        executable: pip3  
-
+    - ../vars/main.yml
   roles:
     - k8s

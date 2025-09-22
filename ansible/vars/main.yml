@@ -22,3 +22,5 @@ image_tag: "latest"
 
 # Application namespace
 app_namespace: "eks-build"
+app_namespace_dev: "dev"
+app_namespace_test: "test"

@@ -1,4 +1,4 @@
-#values-test.yaml
+#values-test.yaml.j2
 namespace: test
 
 backend:
@@ -20,4 +20,3 @@ secretName: "app-secrets"
 
 imagePullSecrets:
   name: "nexus-credentials"
-  namespace: test   # must exist in test namespace

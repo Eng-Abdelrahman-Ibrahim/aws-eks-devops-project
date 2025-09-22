@@ -15,6 +15,11 @@
   ansible.builtin.yum:
     name: unzip
     state: present
+
+- name: Install community.kubernetes collection
+  ansible.builtin.command:
+    cmd: ansible-galaxy collection install community.kubernetes
+    creates: /usr/share/ansible/collections/ansible_collections/community/kubernetes
     
 # ========================================
 # DOCKER INSTALLATION FOR AMAZON LINUX 2023

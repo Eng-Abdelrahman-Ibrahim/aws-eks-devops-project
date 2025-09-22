@@ -1,0 +1,20 @@
+# app-chart/values.yaml
+
+frontend:
+  replicas: 2
+  image:
+    repository: "<placeholder>"
+    tag: "latest"
+
+backend:
+  replicas: 2
+  image:
+    repository: "<placeholder>"
+    tag: "latest"
+
+nginxLBHost: "<placeholder>"
+
+imagePullSecrets:
+  name: "nexus-credentials"
+
+

@@ -1,56 +1,60 @@
 # roles/k8s/tasks/main.yml
 - name: Render Helm values for Dev
-      template:
-        src: ../../../../helm/app-chart/values-dev.yaml.j2
-        dest: ../../../../helm/app-chart/values-dev.yaml
+  template:
+    src: /home/ec2-user/helm/app-chart/values-dev.yaml.j2
+    dest: /home/ec2-user/helm/app-chart/values-dev.yaml
 
-    - name: Render Helm values for Postgres Dev
-      template:
-        src: ../../../../helm/postgres-chart/values-dev.yaml.j2
-        dest: ../../../../helm/postgres-chart/values-dev.yaml
+- name: Render Helm values for Postgres Dev
+  template:
+    src: /home/ec2-user/helm/postgres-chart/values-dev.yaml.j2
+    dest: /home/ec2-user/helm/postgres-chart/values-dev.yaml
 
-    - name: Deploy App Helm Chart to Dev namespace
-      community.kubernetes.helm:
-        name: app-dev
-        chart_path: ../../../../helm/app-chart
-        release_namespace: "{{ app_namespace_dev }}"
-        values_file: ../../../../helm/app-chart/values-dev.yaml
-        create_namespace: yes
-        state: present
+- name: Deploy App Helm Chart to Dev namespace
+  community.kubernetes.helm:
+    release_name: app-dev
+    chart_ref: /home/ec2-user/helm/app-chart
+    release_namespace: "{{ app_namespace_dev }}"
+    values_files:
+      - /home/ec2-user/helm/app-chart/values-dev.yaml
+    create_namespace: yes
+    release_state: present
 
-    - name: Deploy Postgres Helm Chart to Dev namespace
-      community.kubernetes.helm:
-        name: postgres-dev
-        chart_path: ../../../../helm/postgres-chart
-        release_namespace: "{{ app_namespace_dev }}"
-        values_file: ../../../../helm/postgres-chart/values-dev.yaml
-        create_namespace: yes
-        state: present
+- name: Deploy Postgres Helm Chart to Dev namespace
+  community.kubernetes.helm:
+    release_name: postgres-dev
+    chart_ref: /home/ec2-user/helm/postgres-chart
+    release_namespace: "{{ app_namespace_dev }}"
+    values_files:
+      - /home/ec2-user/helm/postgres-chart/values-dev.yaml
+    create_namespace: yes
+    release_state: present
 
-    - name: Render Helm values for Test
-      template:
-        src: ../../../../helm/app-chart/values-test.yaml.j2
-        dest: ../../../../helm/app-chart/values-test.yaml
+- name: Render Helm values for Test
+  template:
+    src: /home/ec2-user/helm/app-chart/values-test.yaml.j2
+    dest: /home/ec2-user/helm/app-chart/values-test.yaml
 
-    - name: Render Helm values for Postgres Test
-      template:
-        src: ../../../../helm/postgres-chart/values-test.yaml.j2
-        dest: ../../../../helm/postgres-chart/values-test.yaml
+- name: Render Helm values for Postgres Test
+  template:
+    src: /home/ec2-user/helm/postgres-chart/values-test.yaml.j2
+    dest: /home/ec2-user/helm/postgres-chart/values-test.yaml
 
-    - name: Deploy App Helm Chart to Test namespace
-      community.kubernetes.helm:
-        name: app-test
-        chart_path: ../../../../helm/app-chart
-        release_namespace: "{{ app_namespace_test }}"
-        values_file: ../../../../helm/app-chart/values-test.yaml
-        create_namespace: yes
-        state: present
+- name: Deploy App Helm Chart to Test namespace
+  community.kubernetes.helm:
+    release_name: app-test
+    chart_ref: /home/ec2-user/helm/app-chart
+    release_namespace: "{{ app_namespace_test }}"
+    values_files:
+      - /home/ec2-user/helm/app-chart/values-test.yaml
+    create_namespace: yes
+    release_state: present
 
-    - name: Deploy Postgres Helm Chart to Test namespace
-      community.kubernetes.helm:
-        name: postgres-test
-        chart_path: ../../../../helm/postgres-chart
-        release_namespace: "{{ app_namespace_test }}"
-        values_file: ../../../../helm/postgres-chart/values-test.yaml
-        create_namespace: yes
-        state: present
+- name: Deploy Postgres Helm Chart to Test namespace
+  community.kubernetes.helm:
+    release_name: postgres-test
+    chart_ref: /home/ec2-user/helm/postgres-chart
+    release_namespace: "{{ app_namespace_test }}"
+    values_files:
+      - /home/ec2-user/helm/postgres-chart/values-test.yaml
+    create_namespace: yes
+    release_state: present
