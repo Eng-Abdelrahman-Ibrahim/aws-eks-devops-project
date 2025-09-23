@@ -7,33 +7,33 @@ pipeline {
     }
 
     environment {
-        # Docker images
+        // Docker images
         BACKEND_IMAGE = 'abdelrahmandevops/devops-backend'
         FRONTEND_IMAGE = 'abdelrahmandevops/devops-frontend'
         BUILD_TAG = "build-${env.BUILD_NUMBER}"
 
-        # Dashboard API
+        // Dashboard API
         DASHBOARD_API = "http://app.local/api/deployments"
 
-        # Docker Host
+        // Docker Host
         DOCKER_HOST = 'unix:///var/run/docker.sock'
 
-        # Docker Hub credentials
+        // Docker Hub credentials
         DOCKERHUB_USER = credentials('DockerHub_Credentials')
         DOCKERHUB_PASS = credentials('DockerHub_Credentials')
         
-        # Nexus credentials
+        // Nexus credentials
         NEXUS_USER = credentials('Nexus_Credentials')
         NEXUS_PASS = credentials('Nexus_Credentials')
         NEXUS_URL = ''
 
-        # Directories
+        // Directories
         EKS_DIR = "$HOME/GitHub_Repos/aws-eks-devops-project/EKS/terraform"
         TERRAFORM_DIR = "$HOME/GitHub_Repos/aws-eks-devops-project/terraform/servers-setup"
         ANSIBLE_DIR = "$HOME/GitHub_Repos/aws-eks-devops-project/ansible"
         HELM_DIR = "$HOME/GitHub_Repos/aws-eks-devops-project/helm"
 
-        # SSH details
+        // SSH details
         ANSIBLE_KEY = "$HOME/.ssh/deployer-one"
         ANSIBLE_USER = "ec2-user"
         SSH_OPTS = "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
