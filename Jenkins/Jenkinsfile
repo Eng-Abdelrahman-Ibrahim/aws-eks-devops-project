@@ -187,16 +187,17 @@ pipeline {
             }
         }
 
-        stage('Deploy with Ansible via Bastion') {
+       stage('Deploy with Ansible via Bastion') {
             steps {
-                sshagent(['SSH_KEY']) {
+                withCredentials([sshUserPrivateKey(credentialsId: 'ANSIBLE_KEY_CRED', keyFileVariable: 'SSH_KEY')]) {
                     sh """
-                        ssh -tt ${SSH_OPTS} -o "ProxyCommand=ssh ${SSH_OPTS} -W %h:%p ${ANSIBLE_USER}@${BASTION_IP}" ${ANSIBLE_USER}@${ANSIBLE_PRIVATE_IP} \\
+                        ssh -i $SSH_KEY ${SSH_OPTS} -o "ProxyCommand=ssh ${SSH_OPTS} -W %h:%p ${ANSIBLE_USER}@${BASTION_IP}" ${ANSIBLE_USER}@${ANSIBLE_PRIVATE_IP} \\
                         'cd ~/ansible && ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml'
                     """
                 }
             }
         }
+
 
     }
 
