@@ -14,6 +14,7 @@ pipeline {
 
         // Dashboard API
         DASHBOARD_API = "http://app.local/api/deployments"
+        DASHBOARD_URL = "http://app.local/app"
 
         // Docker Host
         DOCKER_HOST = 'unix:///var/run/docker.sock'
@@ -94,8 +95,10 @@ pipeline {
                             """,
                             returnStdout: true
                         ).trim()
-                        env.NEXUS_URL = "http://${env.NEXUS_URL}:8082"
-                        echo "Nexus URL: ${env.NEXUS_URL}"
+                       // After fetching NEXUS_URL
+                            env.NEXUS_URL = "${env.NEXUS_URL}:8082"
+                            env.NEXUS_REGISTRY = env.NEXUS_URL.replace('http://','')  // <-- use this for docker tag/push
+
 
                         // Fetch Bastion public IP
                         env.BASTION_IP = sh(
@@ -134,8 +137,8 @@ pipeline {
                                                     usernameVariable: 'DOCKER_USER', 
                                                     passwordVariable: 'DOCKER_PASS')]) {
                         sh """
-                            echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
-                            docker info | grep Username
+                            echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin 
+                            docker info | grep Username 
                         """
                     }
 
@@ -144,7 +147,7 @@ pipeline {
                                                     usernameVariable: 'NEXUS_USER', 
                                                     passwordVariable: 'NEXUS_PASS')]) {
                         sh """
-                            echo \$NEXUS_PASS | docker login \$NEXUS_URL -u \$NEXUS_USER --password-stdin
+                            echo $NEXUS_PASS | docker login $NEXUS_URL -u $NEXUS_USER --password-stdin
                             docker info | grep Server
                         """
                     }
@@ -174,10 +177,11 @@ pipeline {
                     """
                     // Push to Nexus
                     sh """
-                        docker tag ${BACKEND_IMAGE}:${BUILD_TAG} ${NEXUS_URL}/repository/docker-hosted/devops-backend:${BUILD_TAG}
-                        docker tag ${FRONTEND_IMAGE}:${BUILD_TAG} ${NEXUS_URL}/repository/docker-hosted/devops-frontend:${BUILD_TAG}
-                        docker push ${NEXUS_URL}/repository/docker-hosted/devops-backend:${BUILD_TAG}
-                        docker push ${NEXUS_URL}/repository/docker-hosted/devops-frontend:${BUILD_TAG}
+                        docker tag ${BACKEND_IMAGE}:${BUILD_TAG} ${NEXUS_REGISTRY}/repository/docker-hosted/devops-backend:${BUILD_TAG}
+                        docker push ${NEXUS_REGISTRY}/repository/docker-hosted/devops-backend:${BUILD_TAG}
+
+                        docker tag ${FRONTEND_IMAGE}:${BUILD_TAG} ${NEXUS_REGISTRY}/repository/docker-hosted/devops-frontend:${BUILD_TAG}
+                        docker push ${NEXUS_REGISTRY}/repository/docker-hosted/devops-frontend:${BUILD_TAG}
                     """
                 }
             }
@@ -201,12 +205,17 @@ pipeline {
             echo "Pipeline completed. Notifying dashboard..."
             script {
                 def headers = [[name: 'Content-Type', value: 'application/json']]
+
+                // Echo the app URL for clarity
+                echo "Dashboard URL: ${env.DASHBOARD_URL}"
+
                 def payload = """{
                     "version": "build-${env.BUILD_NUMBER ?: '1.0.0'}",
                     "environment": "DEV",
                     "success": ${currentBuild.currentResult == 'SUCCESS'},
                     "notes": "Jenkins build ${env.BUILD_NUMBER} - ${currentBuild.currentResult}"
                 }"""
+
                 try {
                     httpRequest(
                         httpMode: 'POST',
@@ -226,4 +235,6 @@ pipeline {
             sh 'cd application && docker compose down || true'
         }
     }
+
+
 }
