@@ -117,18 +117,28 @@ pipeline {
             steps {
                 script {
                     // Docker Hub login
-                    sh """
-                        echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
-                        docker info | grep Username
-                    """
+                    withCredentials([usernamePassword(credentialsId: 'DockerHub_Credentials', 
+                                                    usernameVariable: 'DOCKER_USER', 
+                                                    passwordVariable: 'DOCKER_PASS')]) {
+                        sh """
+                            echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
+                            docker info | grep Username
+                        """
+                    }
+
                     // Nexus login
-                    sh """
-                        echo "$NEXUS_PASS" | docker login $NEXUS_URL -u "$NEXUS_USER" --password-stdin
-                        docker info | grep Server
-                    """
+                    withCredentials([usernamePassword(credentialsId: 'Nexus_Credentials', 
+                                                    usernameVariable: 'NEXUS_USER', 
+                                                    passwordVariable: 'NEXUS_PASS')]) {
+                        sh """
+                            echo \$NEXUS_PASS | docker login \$NEXUS_URL -u \$NEXUS_USER --password-stdin
+                            docker info | grep Server
+                        """
+                    }
                 }
             }
         }
+
 
         stage('Build and Push Docker Images') {
             steps {
