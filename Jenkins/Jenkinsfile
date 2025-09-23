@@ -78,52 +78,6 @@ pipeline {
 
         stage('Get AWS Info') {
             steps {
-                script {
-                    // Use Jenkins AWS credentials
-                    withAWS(credentials: 'AWS_Admin_User', region: 'us-east-1') {
-
-                        // Fetch Nexus Load Balancer hostname
-                        env.NEXUS_URL = sh(
-                            script: """
-                                aws elbv2 describe-load-balancers \
-                                --query "LoadBalancers[?starts_with(DNSName, 'a2ce756cee7ab4bd4887d38870490b2b')].DNSName" \
-                                --output text
-                            """,
-                            returnStdout: true
-                        ).trim()
-                        env.NEXUS_URL = "http://${env.NEXUS_URL}:8082"
-                        echo "Nexus URL: ${env.NEXUS_URL}"
-
-                        // Fetch Bastion public IP
-                        env.BASTION_IP = sh(
-                            script: """
-                                aws ec2 describe-instances \
-                                --filters "Name=tag:Name,Values=bastion" "Name=instance-state-name,Values=running" \
-                                --query "Reservations[0].Instances[0].PublicIpAddress" \
-                                --output text
-                            """,
-                            returnStdout: true
-                        ).trim()
-                        echo "Bastion Public IP: ${env.BASTION_IP}"
-
-                        // Fetch Ansible private IP
-                        env.ANSIBLE_PRIVATE_IP = sh(
-                            script: """
-                                aws ec2 describe-instances \
-                                --filters "Name=tag:Name,Values=ansible-control-machine" "Name=instance-state-name,Values=running" \
-                                --query "Reservations[0].Instances[0].PrivateIpAddress" \
-                                --output text
-                            """,
-                            returnStdout: true
-                        ).trim()
-                        echo "Ansible Private IP: ${env.ANSIBLE_PRIVATE_IP}"
-                    }
-                }
-            }
-        }
-
-        stage('Get AWS Info') {
-            steps {
                 withCredentials([[
                     $class: 'AmazonWebServicesCredentialsBinding',
                     credentialsId: 'AWS_Admin_User', // your Jenkins AWS credentials ID
@@ -171,6 +125,32 @@ pipeline {
             }
         }
 
+
+        stage('Docker Login') {
+            steps {
+                script {
+                    // Docker Hub login
+                    withCredentials([usernamePassword(credentialsId: 'DockerHub_Credentials', 
+                                                    usernameVariable: 'DOCKER_USER', 
+                                                    passwordVariable: 'DOCKER_PASS')]) {
+                        sh """
+                            echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
+                            docker info | grep Username
+                        """
+                    }
+
+                    // Nexus login
+                    withCredentials([usernamePassword(credentialsId: 'Nexus_Credentials', 
+                                                    usernameVariable: 'NEXUS_USER', 
+                                                    passwordVariable: 'NEXUS_PASS')]) {
+                        sh """
+                            echo \$NEXUS_PASS | docker login \$NEXUS_URL -u \$NEXUS_USER --password-stdin
+                            docker info | grep Server
+                        """
+                    }
+                }
+            }
+        }
 
         stage('Build and Push Docker Images') {
             steps {
