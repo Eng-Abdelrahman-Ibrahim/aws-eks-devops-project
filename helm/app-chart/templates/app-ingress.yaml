@@ -4,12 +4,9 @@ kind: Ingress
 metadata:
   name: app-ingress
   namespace: {{ .Values.namespace }}
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
-    nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   rules:
-    - host: "{{ .Values.nginxLBHost }}"
+    - host: app.local
       http:
         paths:
           - path: /app
@@ -19,7 +16,7 @@ spec:
                 name: frontend
                 port:
                   number: 80
-          - path: /app/api
+          - path: /api
             pathType: Prefix
             backend:
               service:

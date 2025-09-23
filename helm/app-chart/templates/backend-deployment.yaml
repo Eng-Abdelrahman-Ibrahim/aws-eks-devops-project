@@ -23,9 +23,6 @@ spec:
             - containerPort: 8080
           envFrom:
             - configMapRef:
-                name: {{ .Values.configMapName }}
+                name: {{ .Release.Name }}-backend-config
             - secretRef:
-                name: {{ .Values.secretName }}
-          env:
-            - name: SPRING_DATASOURCE_URL
-              value: "jdbc:postgresql://postgres.{{ .Values.namespace }}.svc.cluster.local:5432/myappdb"
+                name: {{ .Release.Name }}-backend-secret

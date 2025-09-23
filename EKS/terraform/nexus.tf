@@ -203,6 +203,7 @@ resource "kubernetes_ingress_v1" "nexus" {
 
   spec {
     rule {
+      host = "nexus.local"
       http {
         path {
           path      = "/"
