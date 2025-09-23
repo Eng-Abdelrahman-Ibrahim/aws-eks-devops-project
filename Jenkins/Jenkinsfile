@@ -25,7 +25,6 @@ pipeline {
         // Nexus credentials
         NEXUS_USER = credentials('Nexus_Credentials')
         NEXUS_PASS = credentials('Nexus_Credentials')
-        NEXUS_URL = ''
 
         // Directories
         EKS_DIR = "EKS/terraform"
@@ -77,55 +76,47 @@ pipeline {
             }
         }
 
-        stage('Terraform Init & Apply') {
+        stage('Get AWS Info') {
             steps {
                 script {
-                    // EKS Terraform
-                    dir("${EKS_DIR}") {
-                        sh "terraform init -input=false"
-                        sh "terraform apply -auto-approve"
-                    }
-
-                    // Servers setup Terraform
-                    dir("${TERRAFORM_DIR}") {
-                        sh "terraform init -input=false"
-                        sh "terraform apply -auto-approve"
-                    }
-                }
-            }
-}
-
-        stage('Get Terraform Outputs') {
-            steps {
-                script {
-                    // Retry until Nexus LB is available
-                    retry(5) {
-                        env.NEXUS_URL = sh(script: "cd ${EKS_DIR} && terraform output -raw nexus_docker_lb_hostname", returnStdout: true).trim()
-                        if (!env.NEXUS_URL) {
-                            echo "Nexus LB not ready yet, waiting..."
-                            sleep 15
-                            error("Retrying...")
-                        }
-                    }
+                    // Fetch Nexus Load Balancer hostname
+                    env.NEXUS_URL = sh(
+                        script: """
+                            aws elbv2 describe-load-balancers \
+                            --query "LoadBalancers[?starts_with(DNSName, 'a2ce756cee7ab4bd4887d38870490b2b')].DNSName" \
+                            --output text
+                        """,
+                        returnStdout: true
+                    ).trim()
                     env.NEXUS_URL = "http://${env.NEXUS_URL}:8082"
                     echo "Nexus URL: ${env.NEXUS_URL}"
 
-                    // Bastion and Ansible private IP
-                    env.BASTION_IP = sh(script: "cd ${TERRAFORM_DIR} && terraform output -raw bastion_public_ip", returnStdout: true).trim()
-                    env.ANSIBLE_PRIVATE_IP = sh(script: "cd ${TERRAFORM_DIR} && terraform output -raw ansible_private_ip", returnStdout: true).trim()
-                    echo "Bastion IP: ${env.BASTION_IP}"
-                    echo "Ansible private IP: ${env.ANSIBLE_PRIVATE_IP}"
+                    // Fetch Bastion public IP
+                    env.BASTION_IP = sh(
+                        script: """
+                            aws ec2 describe-instances \
+                            --filters "Name=tag:Name,Values=bastion" "Name=instance-state-name,Values=running" \
+                            --query "Reservations[0].Instances[0].PublicIpAddress" \
+                            --output text
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    echo "Bastion Public IP: ${env.BASTION_IP}"
 
-                    // Kubeconfig file
-                    env.KUBECONFIG_FILE = sh(script: "cd ${EKS_DIR} && terraform output -raw kubeconfig_file", returnStdout: true).trim()
-                    echo "Kubeconfig file: ${env.KUBECONFIG_FILE}"
-
-                    echo "=== Waiting for SSH availability ==="
-                    sleep 15
+                    // Fetch Ansible private IP
+                    env.ANSIBLE_PRIVATE_IP = sh(
+                        script: """
+                            aws ec2 describe-instances \
+                            --filters "Name=tag:Name,Values=ansible-control-machine" "Name=instance-state-name,Values=running" \
+                            --query "Reservations[0].Instances[0].PrivateIpAddress" \
+                            --output text
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    echo "Ansible Private IP: ${env.ANSIBLE_PRIVATE_IP}"
                 }
             }
         }
-
 
         stage('Docker Login') {
             steps {
@@ -152,7 +143,6 @@ pipeline {
                 }
             }
         }
-
 
         stage('Build and Push Docker Images') {
             steps {
