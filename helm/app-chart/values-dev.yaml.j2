@@ -4,13 +4,13 @@ namespace: dev
 backend:
   replicas: 2
   image:
-    repository: "{{ nexus_registry_url }}/devops-backend"
+    repository: "{{ nexus_registry_url }}/repository/docker-hosted/devops-backend"
     tag: latest
 
 frontend:
   replicas: 2
   image:
-    repository: "{{ nexus_registry_url }}/devops-frontend"
+    repository: "{{ nexus_registry_url }}/repository/docker-hosted/devops-frontend"
     tag: latest
 
 nginxLBHost: "{{ nginx_lb_hostname }}"
@@ -27,5 +27,5 @@ postgresConfig:
   password: "apppassword"
 
 postgres:
-  releaseName: "postgres-dev"
+  releaseName: "postgres"
 

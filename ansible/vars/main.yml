@@ -13,7 +13,8 @@ jenkins_plugins:
   - docker-plugin
   - kubernetes
   - blueocean
-
+  - http_request
+  
 # Nexus Configuration
 nexus_docker_repo: "docker-hosted"
 backend_name: "devops-backend"

@@ -7,29 +7,40 @@ pipeline {
     }
 
     environment {
-        DOCKER_COMPOSE_FILE = './application/docker-compose.yaml'
+        # Docker images
         BACKEND_IMAGE = 'abdelrahmandevops/devops-backend'
         FRONTEND_IMAGE = 'abdelrahmandevops/devops-frontend'
         BUILD_TAG = "build-${env.BUILD_NUMBER}"
-        DASHBOARD_API = "http://host.docker.internal:8080/app/api/deployments"
+
+        # Dashboard API
+        DASHBOARD_API = "http://app.local/api/deployments"
+
+        # Docker Host
         DOCKER_HOST = 'unix:///var/run/docker.sock'
 
-        # Docker Hub credentials stored in Jenkins Credentials
-        DOCKERHUB_USER = credentials('DockerHub_Username')
-        DOCKERHUB_PASS = credentials('DockerHub_Password')
+        # Docker Hub credentials
+        DOCKERHUB_USER = credentials('DockerHub_Credentials')
+        DOCKERHUB_PASS = credentials('DockerHub_Credentials')
+        
+        # Nexus credentials
+        NEXUS_USER = credentials('Nexus_Credentials')
+        NEXUS_PASS = credentials('Nexus_Credentials')
+        NEXUS_URL = ''
 
-        # Nexus credentials stored in Jenkins Credentials
-        NEXUS_USER = credentials('Nexus_Username')
-        NEXUS_PASS = credentials('Nexus_Password')
-        NEXUS_URL = 'nexus.local/repos  itory/docker-hosted'
+        # Directories
+        EKS_DIR = "$HOME/GitHub_Repos/aws-eks-devops-project/EKS/terraform"
+        TERRAFORM_DIR = "$HOME/GitHub_Repos/aws-eks-devops-project/terraform/servers-setup"
+        ANSIBLE_DIR = "$HOME/GitHub_Repos/aws-eks-devops-project/ansible"
+        HELM_DIR = "$HOME/GitHub_Repos/aws-eks-devops-project/helm"
 
-        # Ansible SSH
-        ANSIBLE_HOST = ''
-        ANSIBLE_USER = 'ec2-user'
-        ANSIBLE_KEY = '~/.ssh/deployer-one'
+        # SSH details
+        ANSIBLE_KEY = "$HOME/.ssh/deployer-one"
+        ANSIBLE_USER = "ec2-user"
+        SSH_OPTS = "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     }
 
     stages {
+
         stage('Clean Workspace') {
             steps { cleanWs() }
         }
@@ -67,89 +78,86 @@ pipeline {
             }
         }
 
-        stage('Docker Login to Docker Hub') {
+        stage('Get Terraform Outputs') {
             steps {
-                sh 'echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin'
-            }
-        }
+                script {
+                    // Get Nexus URL
+                    env.NEXUS_URL = sh(script: "cd ${EKS_DIR} && terraform output -raw nexus_docker_lb_hostname", returnStdout: true).trim()
+                    env.NEXUS_URL = "http://${env.NEXUS_URL}:8082"
+                    echo "Nexus URL: ${env.NEXUS_URL}"
 
-        stage('Docker Login to Nexus') {
-            steps {
-                sh 'echo "$NEXUS_PASS" | docker login $NEXUS_URL -u "$NEXUS_USER" --password-stdin'
-            }
-        }
+                    // Get Bastion and Ansible private IP
+                    env.BASTION_IP = sh(script: "cd ${TERRAFORM_DIR} && terraform output -raw bastion_public_ip", returnStdout: true).trim()
+                    env.ANSIBLE_PRIVATE_IP = sh(script: "cd ${TERRAFORM_DIR} && terraform output -raw ansible_private_ip", returnStdout: true).trim()
+                    echo "Bastion IP: ${env.BASTION_IP}"
+                    echo "Ansible private IP: ${env.ANSIBLE_PRIVATE_IP}"
 
-        stage('Build Backend Docker Image') {
-            steps {
-                sh """
-                    docker build -t ${BACKEND_IMAGE}:${BUILD_TAG} \
-                        --build-arg JAR_FILE=application/target/backend-app.jar \
-                        ./application
-                """
-            }
-        }
+                    // Get kubeconfig file path
+                    env.KUBECONFIG_FILE = sh(script: "cd ${EKS_DIR} && terraform output -raw kubeconfig_file", returnStdout: true).trim()
+                    echo "Kubeconfig file: ${env.KUBECONFIG_FILE}"
 
-        stage('Build Frontend Docker Image') {
-            steps {
-                sh """
-                    docker build -t ${FRONTEND_IMAGE}:${BUILD_TAG} \
-                        --build-arg BUILD_DIR=application/frontend/build \
-                        --build-arg REACT_APP_API_URL=http://${NEXUS_URL}/app/api \
-                        ./application/frontend
-                """
-            }
-        }
-
-        stage('Push Docker Images to Docker Hub') {
-            steps {
-                sh """
-                    docker tag ${BACKEND_IMAGE}:${BUILD_TAG} ${BACKEND_IMAGE}:latest
-                    docker tag ${FRONTEND_IMAGE}:${BUILD_TAG} ${FRONTEND_IMAGE}:latest
-
-                    docker push ${BACKEND_IMAGE}:${BUILD_TAG}
-                    docker push ${BACKEND_IMAGE}:latest
-
-                    docker push ${FRONTEND_IMAGE}:${BUILD_TAG}
-                    docker push ${FRONTEND_IMAGE}:latest
-                """
-            }
-        }
-
-        stage('Push Docker Images to Nexus') {
-            steps {
-                sh """
-                    docker tag ${BACKEND_IMAGE}:${BUILD_TAG} ${NEXUS_URL}/backend:${BUILD_TAG}
-                    docker tag ${FRONTEND_IMAGE}:${BUILD_TAG} ${NEXUS_URL}/frontend:${BUILD_TAG}
-
-                    docker push ${NEXUS_URL}/backend:${BUILD_TAG}
-                    docker push ${NEXUS_URL}/frontend:${BUILD_TAG}
-                """
-            }
-        }
-
-
-        stages {
-            stage('Get Ansible EC2 Public IP') {
-                steps {
-                    script {
-                        // Navigate to Terraform directory
-                        dir('../terraform/servers-setup') {
-                            // Get Terraform output
-                            def ip = sh(script: "terraform output -raw ansible_public_ip", returnStdout: true).trim()
-                            env.ANSIBLE_HOST = "${ANSIBLE_USER}@${ip}"
-                            echo "Ansible EC2 host: ${env.ANSIBLE_HOST}"
-                        }
-                    }
+                    echo "=== Waiting for SSH availability ==="
+                    sleep 15
                 }
             }
-}            
-        stage('Run Ansible for Nexus + App Deployment') {
+        }
+
+        stage('Docker Login') {
             steps {
-                sh """
-                    ssh -i ${ANSIBLE_KEY} ${ANSIBLE_HOST} \
-                    'cd ~/ansible && \
-                     ansible-playbook -i inventory/hosts.ini playbooks/deploy-app.yml'
-                """
+                script {
+                    // Docker Hub login
+                    sh """
+                        echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
+                        docker info | grep Username
+                    """
+                    // Nexus login
+                    sh """
+                        echo "$NEXUS_PASS" | docker login $NEXUS_URL -u "$NEXUS_USER" --password-stdin
+                        docker info | grep Server
+                    """
+                }
+            }
+        }
+
+        stage('Build and Push Docker Images') {
+            steps {
+                script {
+                    // Build backend image
+                    sh """
+                        docker build -t ${BACKEND_IMAGE}:${BUILD_TAG} --build-arg JAR_FILE=application/target/backend-app.jar ./application
+                        docker tag ${BACKEND_IMAGE}:${BUILD_TAG} ${BACKEND_IMAGE}:latest
+                    """
+                    // Build frontend image
+                    sh """
+                        docker build -t ${FRONTEND_IMAGE}:${BUILD_TAG} --build-arg BUILD_DIR=application/frontend/build --build-arg REACT_APP_API_URL=http://${NEXUS_URL}/app/api ./application/frontend
+                        docker tag ${FRONTEND_IMAGE}:${BUILD_TAG} ${FRONTEND_IMAGE}:latest
+                    """
+                    // Push to Docker Hub
+                    sh """
+                        docker push ${BACKEND_IMAGE}:${BUILD_TAG}
+                        docker push ${BACKEND_IMAGE}:latest
+                        docker push ${FRONTEND_IMAGE}:${BUILD_TAG}
+                        docker push ${FRONTEND_IMAGE}:latest
+                    """
+                    // Push to Nexus
+                    sh """
+                        docker tag ${BACKEND_IMAGE}:${BUILD_TAG} ${NEXUS_URL}/repository/docker-hosted/devops-backend:${BUILD_TAG}
+                        docker tag ${FRONTEND_IMAGE}:${BUILD_TAG} ${NEXUS_URL}/repository/docker-hosted/devops-frontend:${BUILD_TAG}
+                        docker push ${NEXUS_URL}/repository/docker-hosted/devops-backend:${BUILD_TAG}
+                        docker push ${NEXUS_URL}/repository/docker-hosted/devops-frontend:${BUILD_TAG}
+                    """
+                }
+            }
+        }
+
+        stage('Deploy with Ansible via Bastion') {
+            steps {
+                script {
+                    sh """
+                        ssh -tt -i ${ANSIBLE_KEY} ${SSH_OPTS} -o "ProxyCommand=ssh -i ${ANSIBLE_KEY} ${SSH_OPTS} -W %h:%p ${ANSIBLE_USER}@${BASTION_IP}" ${ANSIBLE_USER}@${ANSIBLE_PRIVATE_IP} \\
+                        'cd ~/ansible && ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml'
+                    """
+                }
             }
         }
     }

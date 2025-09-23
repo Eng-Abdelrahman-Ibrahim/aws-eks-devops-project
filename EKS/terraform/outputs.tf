@@ -83,3 +83,11 @@ output "nginx_ingress_lb_hostname" {
 output "nexus_registry_secret_name" {
   value = kubernetes_secret.nexus_registry.metadata[0].name
 }
+
+
+# ───────────────────────────────
+# Output Nexus Docker LB hostname
+# ───────────────────────────────
+output "nexus_docker_lb_hostname" {
+  value = data.kubernetes_service.nexus_docker_lb.status[0].load_balancer[0].ingress[0].hostname
+}

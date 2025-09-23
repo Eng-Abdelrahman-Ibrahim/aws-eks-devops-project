@@ -4,6 +4,8 @@ kind: Ingress
 metadata:
   name: app-ingress
   namespace: {{ .Values.namespace }}
+  annotations:
+    kubernetes.io/ingress.class: nginx
 spec:
   rules:
     - host: app.local
