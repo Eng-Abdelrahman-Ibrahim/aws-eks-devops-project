@@ -35,7 +35,6 @@ pipeline {
 
         // SSH details
         ANSIBLE_USER = "ec2-user"
-        SSH_OPTS = "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     }
 
     stages {
@@ -189,15 +188,16 @@ pipeline {
 
        stage('Deploy with Ansible via Bastion') {
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'ANSIBLE_KEY_CRED', keyFileVariable: 'SSH_KEY')]) {
+                withCredentials([sshUserPrivateKey(credentialsId: 'ANSIBLE_KEY_CRED', keyFileVariable: 'ANSIBLE_KEY')]) {
                     sh """
-                        ssh -i $SSH_KEY ${SSH_OPTS} -o "ProxyCommand=ssh ${SSH_OPTS} -W %h:%p ${ANSIBLE_USER}@${BASTION_IP}" ${ANSIBLE_USER}@${ANSIBLE_PRIVATE_IP} \\
-                        'cd ~/ansible && ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml'
+                        ssh -tt -i "$ANSIBLE_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+                            -o "ProxyCommand=ssh -i $ANSIBLE_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p ${ANSIBLE_USER}@${BASTION_IP}" \
+                            ${ANSIBLE_USER}@${ANSIBLE_PRIVATE_IP} \
+                            'cd ~/ansible && ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml'
                     """
                 }
             }
         }
-
 
     }
 
@@ -236,6 +236,4 @@ pipeline {
             sh 'cd application && docker compose down || true'
         }
     }
-
-
 }
