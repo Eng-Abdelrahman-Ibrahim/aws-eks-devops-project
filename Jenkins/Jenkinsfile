@@ -189,7 +189,7 @@ pipeline {
 
         stage('Deploy with Ansible via Bastion') {
             steps {
-                sshagent(['ANSIBLE_KEY_CRED']) {
+                sshagent(['SSH_KEY']) {
                     sh """
                         ssh -tt ${SSH_OPTS} -o "ProxyCommand=ssh ${SSH_OPTS} -W %h:%p ${ANSIBLE_USER}@${BASTION_IP}" ${ANSIBLE_USER}@${ANSIBLE_PRIVATE_IP} \\
                         'cd ~/ansible && ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml'
