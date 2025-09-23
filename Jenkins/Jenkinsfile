@@ -122,6 +122,18 @@ pipeline {
                             returnStdout: true
                         ).trim()
                         echo "Ansible Private IP: ${env.ANSIBLE_PRIVATE_IP}"
+
+                        // Fetch Ansible instance ID
+                        env.ANSIBLE_INSTANCE_ID = sh(
+                            script: """
+                                aws ec2 describe-instances \
+                                --filters "Name=tag:Name,Values=ansible-control-machine" "Name=instance-state-name,Values=running" \
+                                --query "Reservations[0].Instances[0].InstanceId" \
+                                --output text
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        echo "Ansible Instance ID: ${env.ANSIBLE_INSTANCE_ID}"
                     }
                 }
             }
@@ -190,10 +202,10 @@ pipeline {
             steps {
                 withCredentials([sshUserPrivateKey(credentialsId: 'ANSIBLE_KEY_CRED', keyFileVariable: 'ANSIBLE_KEY')]) {
                     sh """
-                        ssh -tt -i "$ANSIBLE_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-                            -o "ProxyCommand=ssh -i $ANSIBLE_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p ${ANSIBLE_USER}@${BASTION_IP}" \
-                            ${ANSIBLE_USER}@${ANSIBLE_PRIVATE_IP} \
-                            'cd ~/ansible && ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml'
+                        aws ssm start-session \
+                        --target $ANSIBLE_INSTANCE_ID \
+                        --document-name AWS-StartInteractiveCommand \
+                        --parameters 'command=["sudo -i && cd /home/ec2-user/ansible && ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml"]'
                     """
                 }
             }
