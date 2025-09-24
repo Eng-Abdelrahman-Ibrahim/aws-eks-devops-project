@@ -58,3 +58,15 @@
       - /home/ec2-user/helm/postgres-chart/values-test.yaml
     create_namespace: yes
     release_state: present
+
+- name: Rolling restart App deployments in Dev
+  command: kubectl rollout restart deployment {{ item }} -n "{{ app_namespace_dev }}"
+  loop:
+    - backend
+    - frontend
+
+- name: Rolling restart App deployments in Test
+  command: kubectl rollout restart deployment {{ item }} -n "{{ app_namespace_test }}"
+  loop:
+    - backend
+    - frontend
