@@ -207,7 +207,6 @@ pipeline {
                     secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
                 ]]) {
                     script {
-                        // Run Ansible playbook with proper environment for Helm
                         sh """
                             aws ssm send-command \
                                 --targets "Key=InstanceIds,Values=${env.ANSIBLE_INSTANCE_ID}" \
@@ -217,7 +216,7 @@ pipeline {
                                     "export KUBECONFIG=/home/ec2-user/.kube/config",
                                     "export PATH=\\$PATH:/usr/local/bin",
                                     "cd /home/ec2-user/ansible",
-                                    "ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml"
+                                    "ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml -v --force-handlers --skip-tags deprecation_warnings"
                                 ]' \
                                 --region us-east-1 \
                                 --output json > ssm_command.json
@@ -225,7 +224,7 @@ pipeline {
                             # Extract the Command ID
                             CMD_ID=\$(jq -r '.Command.CommandId' ssm_command.json)
 
-                            # Wait for command completion and capture the exit code
+                            # Wait for command completion
                             STATUS="Pending"
                             while [[ "\$STATUS" == "Pending" || "\$STATUS" == "InProgress" ]]; do
                                 sleep 5
@@ -236,18 +235,20 @@ pipeline {
                                 echo "SSM command status: \$STATUS"
                             done
 
-                            # Fetch output
+                            # Fetch and print output
+                            echo "===== Ansible Output ====="
                             aws ssm get-command-invocation \
                                 --command-id \$CMD_ID \
                                 --instance-id ${env.ANSIBLE_INSTANCE_ID} \
                                 --query 'StandardOutputContent' --output text
 
+                            echo "===== Ansible Error Output (warnings only) ====="
                             aws ssm get-command-invocation \
                                 --command-id \$CMD_ID \
                                 --instance-id ${env.ANSIBLE_INSTANCE_ID} \
                                 --query 'StandardErrorContent' --output text
 
-                            # Fetch exit code and fail if Ansible failed
+                            # Fail stage if Ansible truly failed
                             EXIT_CODE=\$(aws ssm get-command-invocation \
                                 --command-id \$CMD_ID \
                                 --instance-id ${env.ANSIBLE_INSTANCE_ID} \
@@ -264,7 +265,6 @@ pipeline {
                 }
             }
         }
-
 
     }
 
