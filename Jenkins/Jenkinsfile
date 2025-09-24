@@ -207,64 +207,64 @@ pipeline {
                     secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
                 ]]) {
                     script {
-                        // Send SSM command and capture CommandId
-                        def cmdOutput = sh(
-                            script: """
-                                aws ssm send-command \
-                                    --targets "Key=InstanceIds,Values=${env.ANSIBLE_INSTANCE_ID}" \
-                                    --document-name "AWS-RunShellScript" \
-                                    --comment "Deploy Helm chart via Ansible" \
-                                    --parameters 'commands=["export ANSIBLE_DEPRECATION_WARNINGS=False && cd /home/ec2-user/ansible && ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml"]' \
-                                    --region us-east-1 \
-                                    --query "Command.CommandId" --output text
-                            """,
-                            returnStdout: true
-                        ).trim()
-                        echo "SSM Command ID: ${cmdOutput}"
+                        // Run Ansible playbook with proper environment for Helm
+                        sh """
+                            aws ssm send-command \
+                                --targets "Key=InstanceIds,Values=${env.ANSIBLE_INSTANCE_ID}" \
+                                --document-name "AWS-RunShellScript" \
+                                --comment "Deploy Helm chart via Ansible" \
+                                --parameters 'commands=[
+                                    "export KUBECONFIG=/home/ec2-user/.kube/config",
+                                    "export PATH=\\$PATH:/usr/local/bin",
+                                    "cd /home/ec2-user/ansible",
+                                    "ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml"
+                                ]' \
+                                --region us-east-1 \
+                                --output json > ssm_command.json
 
-                        // Poll for command status
-                        def status = ""
-                        timeout(time: 15, unit: 'MINUTES') {
-                            while (true) {
-                                status = sh(
-                                    script: "aws ssm list-command-invocations --command-id ${cmdOutput} --details --query 'CommandInvocations[0].Status' --output text",
-                                    returnStdout: true
-                                ).trim()
-                                echo "Current SSM command status: ${status}"
-                                if (status in ["Success","Failed","Cancelled","TimedOut"]) {
-                                    break
-                                }
-                                sleep 10
-                            }
-                        }
+                            # Extract the Command ID
+                            CMD_ID=\$(jq -r '.Command.CommandId' ssm_command.json)
 
-                        // Fetch stdout and stderr
-                        def output = sh(
-                            script: "aws ssm get-command-invocation --command-id ${cmdOutput} --instance-id ${env.ANSIBLE_INSTANCE_ID} --query 'StandardOutputContent' --output text",
-                            returnStdout: true
-                        ).trim()
-                        echo "Ansible Output:\n${output}"
+                            # Wait for command completion and capture the exit code
+                            STATUS="Pending"
+                            while [[ "\$STATUS" == "Pending" || "\$STATUS" == "InProgress" ]]; do
+                                sleep 5
+                                STATUS=\$(aws ssm get-command-invocation \
+                                    --command-id \$CMD_ID \
+                                    --instance-id ${env.ANSIBLE_INSTANCE_ID} \
+                                    --query 'Status' --output text)
+                                echo "SSM command status: \$STATUS"
+                            done
 
-                        def errorOutput = sh(
-                            script: "aws ssm get-command-invocation --command-id ${cmdOutput} --instance-id ${env.ANSIBLE_INSTANCE_ID} --query 'StandardErrorContent' --output text",
-                            returnStdout: true
-                        ).trim()
-                        echo "Ansible Error Output (warnings only):\n${errorOutput}"
+                            # Fetch output
+                            aws ssm get-command-invocation \
+                                --command-id \$CMD_ID \
+                                --instance-id ${env.ANSIBLE_INSTANCE_ID} \
+                                --query 'StandardOutputContent' --output text
 
-                        // Inspect actual exit code from Ansible
-                        def exitCode = sh(
-                            script: "aws ssm get-command-invocation --command-id ${cmdOutput} --instance-id ${env.ANSIBLE_INSTANCE_ID} --query 'CommandPlugins[0].ResponseCode' --output text",
-                            returnStdout: true
-                        ).trim()
-                        echo "Ansible Exit Code: ${exitCode}"
+                            aws ssm get-command-invocation \
+                                --command-id \$CMD_ID \
+                                --instance-id ${env.ANSIBLE_INSTANCE_ID} \
+                                --query 'StandardErrorContent' --output text
 
-                        if (exitCode != "0") {
-                            error("Ansible playbook failed (exit code ${exitCode}). Check SSM logs above.")
-                        }
+                            # Fetch exit code and fail if Ansible failed
+                            EXIT_CODE=\$(aws ssm get-command-invocation \
+                                --command-id \$CMD_ID \
+                                --instance-id ${env.ANSIBLE_INSTANCE_ID} \
+                                --query 'CommandPlugins[0].ResponseCode' --output text)
+
+                            if [[ "\$EXIT_CODE" != "0" ]]; then
+                                echo "Ansible playbook failed with exit code \$EXIT_CODE"
+                                exit 1
+                            fi
+
+                            echo "Ansible playbook completed successfully!"
+                        """
                     }
                 }
             }
         }
+
 
     }
 
