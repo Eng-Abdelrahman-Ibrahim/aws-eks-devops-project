@@ -198,18 +198,26 @@ pipeline {
             }
         }
 
-       stage('Deploy with Ansible via Bastion') {
+        stage('Deploy with Ansible via SSM') {
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'ANSIBLE_KEY_CRED', keyFileVariable: 'ANSIBLE_KEY')]) {
-                    sh """
-                        aws ssm start-session \
-                        --target $ANSIBLE_INSTANCE_ID \
-                        --document-name AWS-StartInteractiveCommand \
-                        --parameters 'command=["sudo -i && cd /home/ec2-user/ansible && ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml"]'
-                    """
+                withCredentials([[
+                    $class: 'AmazonWebServicesCredentialsBinding',
+                    credentialsId: 'AWS_Admin_User',
+                    accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                    secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                ]]) {
+                    script {
+                        sh """
+                            aws ssm start-session \
+                                --target ${env.ANSIBLE_INSTANCE_ID} \
+                                --document-name AWS-StartInteractiveCommand \
+                                --parameters 'command=["sudo -i && cd /home/ec2-user/ansible && ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml"]'
+                        """
+                    }
                 }
             }
         }
+
 
     }
 
