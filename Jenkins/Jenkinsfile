@@ -208,7 +208,7 @@ pipeline {
                 ]]) {
                     script {
                         sh """
-                            # Send the command to SSM
+                            # Send command via SSM
                             aws ssm send-command \
                                 --targets "Key=InstanceIds,Values=${env.ANSIBLE_INSTANCE_ID}" \
                                 --document-name "AWS-RunShellScript" \
@@ -222,11 +222,11 @@ pipeline {
                                 --region us-east-1 \
                                 --output json > ssm_command.json
 
-                            # Extract the Command ID
+                            # Extract Command ID
                             CMD_ID=\$(jq -r '.Command.CommandId' ssm_command.json)
                             echo "SSM Command ID: \$CMD_ID"
 
-                            # Poll SSM until command finishes
+                            # Wait for completion
                             STATUS="Pending"
                             while [[ "\$STATUS" == "Pending" || "\$STATUS" == "InProgress" ]]; do
                                 sleep 5
@@ -237,7 +237,7 @@ pipeline {
                                 echo "SSM command status: \$STATUS"
                             done
 
-                            # Fetch output
+                            # Print Ansible output
                             echo "===== Ansible Output ====="
                             aws ssm get-command-invocation \
                                 --command-id \$CMD_ID \
@@ -250,14 +250,17 @@ pipeline {
                                 --instance-id ${env.ANSIBLE_INSTANCE_ID} \
                                 --query 'StandardErrorContent' --output text
 
-                            # Fail only if there are real failed tasks
+                            # Count failed tasks in the output
                             FAILED_COUNT=\$(aws ssm get-command-invocation \
                                 --command-id \$CMD_ID \
                                 --instance-id ${env.ANSIBLE_INSTANCE_ID} \
-                                --query 'StandardOutputContent' --output text | grep -c "failed=1")
+                                --query 'StandardOutputContent' --output text | grep -c 'failed=1')
 
+                            echo "Failed tasks count: \$FAILED_COUNT"
+
+                            # Fail the stage only if there are real failed tasks
                             if [[ "\$FAILED_COUNT" -gt 0 ]]; then
-                                echo "Ansible playbook has failed tasks!"
+                                echo "Ansible reported \$FAILED_COUNT failed tasks. Failing the stage."
                                 exit 1
                             fi
 
