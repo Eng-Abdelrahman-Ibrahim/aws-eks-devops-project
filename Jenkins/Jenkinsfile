@@ -207,20 +207,75 @@ pipeline {
                     secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
                 ]]) {
                     script {
-                        sh """
-                            aws ssm send-command \
-                                --targets "Key=InstanceIds,Values=${env.ANSIBLE_INSTANCE_ID}" \
-                                --document-name "AWS-RunShellScript" \
-                                --comment "Deploy Helm chart via Ansible" \
-                                --parameters 'commands=["cd /home/ec2-user/ansible && ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml"]' \
-                                --region us-east-1
-                        """
+                        // Send command
+                        def commandId = sh(
+                            script: """
+                                aws ssm send-command \
+                                    --targets "Key=InstanceIds,Values=${env.ANSIBLE_INSTANCE_ID}" \
+                                    --document-name "AWS-RunShellScript" \
+                                    --comment "Deploy Helm chart via Ansible" \
+                                    --parameters 'commands=["cd /home/ec2-user/ansible && sudo ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml"]' \
+                                    --query "Command.CommandId" \
+                                    --output text \
+                                    --region us-east-1
+                            """,
+                            returnStdout: true
+                        ).trim()
+
+                        echo "SSM Command ID: ${commandId}"
+
+                        // Wait for command to complete
+                        timeout(time: 15, unit: 'MINUTES') {
+                            waitUntil {
+                                def status = sh(
+                                    script: """
+                                        aws ssm list-command-invocations \
+                                            --command-id ${commandId} \
+                                            --details \
+                                            --query "CommandInvocations[0].Status" \
+                                            --output text \
+                                            --region us-east-1
+                                    """,
+                                    returnStdout: true
+                                ).trim()
+                                echo "Current SSM command status: ${status}"
+                                return (status == "Success" || status == "Failed" || status == "TimedOut")
+                            }
+                        }
+
+                        // Fetch output
+                        def output = sh(
+                            script: """
+                                aws ssm get-command-invocation \
+                                    --command-id ${commandId} \
+                                    --instance-id ${env.ANSIBLE_INSTANCE_ID} \
+                                    --query "StandardOutputContent" \
+                                    --output text \
+                                    --region us-east-1
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        echo "SSM Command Output:\n${output}"
+
+                        def errorOutput = sh(
+                            script: """
+                                aws ssm get-command-invocation \
+                                    --command-id ${commandId} \
+                                    --instance-id ${env.ANSIBLE_INSTANCE_ID} \
+                                    --query "StandardErrorContent" \
+                                    --output text \
+                                    --region us-east-1
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        if (errorOutput) {
+                            echo "SSM Command Error Output:\n${errorOutput}"
+                            error("Ansible deployment failed. See error output above.")
+                        }
                     }
                 }
             }
         }
-
-
 
     }
 
