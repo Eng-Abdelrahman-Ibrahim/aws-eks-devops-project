@@ -208,15 +208,18 @@ pipeline {
                 ]]) {
                     script {
                         sh """
-                            aws ssm start-session \
-                                --target ${env.ANSIBLE_INSTANCE_ID} \
-                                --document-name AWS-StartInteractiveCommand \
-                                --parameters 'command=["sudo -i && cd /home/ec2-user/ansible && ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml"]'
+                            aws ssm send-command \
+                                --targets "Key=InstanceIds,Values=${env.ANSIBLE_INSTANCE_ID}" \
+                                --document-name "AWS-RunShellScript" \
+                                --comment "Deploy Helm chart via Ansible" \
+                                --parameters 'commands=["cd /home/ec2-user/ansible && ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml"]' \
+                                --region us-east-1
                         """
                     }
                 }
             }
         }
+
 
 
     }
