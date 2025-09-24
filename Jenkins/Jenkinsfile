@@ -214,7 +214,7 @@ pipeline {
                                     --targets "Key=InstanceIds,Values=${env.ANSIBLE_INSTANCE_ID}" \
                                     --document-name "AWS-RunShellScript" \
                                     --comment "Deploy Helm chart via Ansible" \
-                                    --parameters 'commands=["cd /home/ec2-user/ansible && ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml"]' \
+                                    --parameters 'commands=["export ANSIBLE_DEPRECATION_WARNINGS=False && cd /home/ec2-user/ansible && ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml"]' \
                                     --region us-east-1 \
                                     --query "Command.CommandId" --output text
                             """,
@@ -222,7 +222,7 @@ pipeline {
                         ).trim()
                         echo "SSM Command ID: ${cmdOutput}"
 
-                        // Poll for command status until finished
+                        // Poll for command status
                         def status = ""
                         timeout(time: 15, unit: 'MINUTES') {
                             while (true) {
@@ -238,7 +238,7 @@ pipeline {
                             }
                         }
 
-                        // Fetch the output for logging
+                        // Fetch stdout and stderr
                         def output = sh(
                             script: "aws ssm get-command-invocation --command-id ${cmdOutput} --instance-id ${env.ANSIBLE_INSTANCE_ID} --query 'StandardOutputContent' --output text",
                             returnStdout: true
@@ -251,15 +251,20 @@ pipeline {
                         ).trim()
                         echo "Ansible Error Output (warnings only):\n${errorOutput}"
 
-                        // Fail Jenkins stage if Ansible failed
-                        if (status != "Success") {
-                            error("Ansible playbook failed. Check SSM logs above.")
+                        // Inspect actual exit code from Ansible
+                        def exitCode = sh(
+                            script: "aws ssm get-command-invocation --command-id ${cmdOutput} --instance-id ${env.ANSIBLE_INSTANCE_ID} --query 'CommandPlugins[0].ResponseCode' --output text",
+                            returnStdout: true
+                        ).trim()
+                        echo "Ansible Exit Code: ${exitCode}"
+
+                        if (exitCode != "0") {
+                            error("Ansible playbook failed (exit code ${exitCode}). Check SSM logs above.")
                         }
                     }
                 }
             }
         }
-
 
     }
 
