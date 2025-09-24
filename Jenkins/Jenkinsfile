@@ -207,75 +207,59 @@ pipeline {
                     secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
                 ]]) {
                     script {
-                        // Send command
-                        def commandId = sh(
+                        // Send SSM command and capture CommandId
+                        def cmdOutput = sh(
                             script: """
                                 aws ssm send-command \
                                     --targets "Key=InstanceIds,Values=${env.ANSIBLE_INSTANCE_ID}" \
                                     --document-name "AWS-RunShellScript" \
                                     --comment "Deploy Helm chart via Ansible" \
-                                    --parameters 'commands=["cd /home/ec2-user/ansible && sudo ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml"]' \
-                                    --query "Command.CommandId" \
-                                    --output text \
-                                    --region us-east-1
+                                    --parameters 'commands=["cd /home/ec2-user/ansible && ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml"]' \
+                                    --region us-east-1 \
+                                    --query "Command.CommandId" --output text
                             """,
                             returnStdout: true
                         ).trim()
+                        echo "SSM Command ID: ${cmdOutput}"
 
-                        echo "SSM Command ID: ${commandId}"
-
-                        // Wait for command to complete
+                        // Poll for command status until finished
+                        def status = ""
                         timeout(time: 15, unit: 'MINUTES') {
-                            waitUntil {
-                                def status = sh(
-                                    script: """
-                                        aws ssm list-command-invocations \
-                                            --command-id ${commandId} \
-                                            --details \
-                                            --query "CommandInvocations[0].Status" \
-                                            --output text \
-                                            --region us-east-1
-                                    """,
+                            while (true) {
+                                status = sh(
+                                    script: "aws ssm list-command-invocations --command-id ${cmdOutput} --details --query 'CommandInvocations[0].Status' --output text",
                                     returnStdout: true
                                 ).trim()
                                 echo "Current SSM command status: ${status}"
-                                return (status == "Success" || status == "Failed" || status == "TimedOut")
+                                if (status in ["Success","Failed","Cancelled","TimedOut"]) {
+                                    break
+                                }
+                                sleep 10
                             }
                         }
 
-                        // Fetch output
+                        // Fetch the output for logging
                         def output = sh(
-                            script: """
-                                aws ssm get-command-invocation \
-                                    --command-id ${commandId} \
-                                    --instance-id ${env.ANSIBLE_INSTANCE_ID} \
-                                    --query "StandardOutputContent" \
-                                    --output text \
-                                    --region us-east-1
-                            """,
+                            script: "aws ssm get-command-invocation --command-id ${cmdOutput} --instance-id ${env.ANSIBLE_INSTANCE_ID} --query 'StandardOutputContent' --output text",
                             returnStdout: true
                         ).trim()
-                        echo "SSM Command Output:\n${output}"
+                        echo "Ansible Output:\n${output}"
 
                         def errorOutput = sh(
-                            script: """
-                                aws ssm get-command-invocation \
-                                    --command-id ${commandId} \
-                                    --instance-id ${env.ANSIBLE_INSTANCE_ID} \
-                                    --query "StandardErrorContent" \
-                                    --output text \
-                                    --region us-east-1
-                            """,
+                            script: "aws ssm get-command-invocation --command-id ${cmdOutput} --instance-id ${env.ANSIBLE_INSTANCE_ID} --query 'StandardErrorContent' --output text",
                             returnStdout: true
                         ).trim()
-                        if (errorOutput) {
-                            echo "SSM Command Error Output:\n${errorOutput}"
-                            error("Ansible deployment failed. See error output above.")
+                        echo "Ansible Error Output (warnings only):\n${errorOutput}"
+
+                        // Fail Jenkins stage if Ansible failed
+                        if (status != "Success") {
+                            error("Ansible playbook failed. Check SSM logs above.")
                         }
                     }
                 }
             }
         }
+
 
     }
 
