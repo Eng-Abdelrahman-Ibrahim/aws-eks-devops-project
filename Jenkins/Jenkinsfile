@@ -208,7 +208,7 @@ pipeline {
                 ]]) {
                     script {
                         sh """
-                            # Send command via SSM
+                            # Send SSM command
                             aws ssm send-command \
                                 --targets "Key=InstanceIds,Values=${env.ANSIBLE_INSTANCE_ID}" \
                                 --document-name "AWS-RunShellScript" \
@@ -222,11 +222,11 @@ pipeline {
                                 --region us-east-1 \
                                 --output json > ssm_command.json
 
-                            # Extract Command ID
+                            # Get Command ID
                             CMD_ID=\$(jq -r '.Command.CommandId' ssm_command.json)
                             echo "SSM Command ID: \$CMD_ID"
 
-                            # Wait for completion
+                            # Wait for command to finish
                             STATUS="Pending"
                             while [[ "\$STATUS" == "Pending" || "\$STATUS" == "InProgress" ]]; do
                                 sleep 5
@@ -237,7 +237,7 @@ pipeline {
                                 echo "SSM command status: \$STATUS"
                             done
 
-                            # Print Ansible output
+                            # Print outputs
                             echo "===== Ansible Output ====="
                             aws ssm get-command-invocation \
                                 --command-id \$CMD_ID \
@@ -250,26 +250,24 @@ pipeline {
                                 --instance-id ${env.ANSIBLE_INSTANCE_ID} \
                                 --query 'StandardErrorContent' --output text
 
-                            # Count failed tasks in the output
+                            # Count failed tasks
                             FAILED_COUNT=\$(aws ssm get-command-invocation \
                                 --command-id \$CMD_ID \
                                 --instance-id ${env.ANSIBLE_INSTANCE_ID} \
-                                --query 'StandardOutputContent' --output text | grep -c 'failed=1')
+                                --query 'StandardOutputContent' --output text | grep -c 'failed=1' || true)
 
-                            echo "Failed tasks count: \$FAILED_COUNT"
-
-                            # Fail the stage only if there are real failed tasks
-                            if [[ "\$FAILED_COUNT" -gt 0 ]]; then
-                                echo "Ansible reported \$FAILED_COUNT failed tasks. Failing the stage."
+                            if [[ "\$FAILED_COUNT" -eq 0 ]]; then
+                                echo "Ansible playbook completed successfully!"
+                            else
+                                echo "Ansible playbook reported \$FAILED_COUNT failed tasks!"
                                 exit 1
                             fi
-
-                            echo "Ansible playbook completed successfully!"
                         """
                     }
                 }
             }
         }
+
 
 
     }
