@@ -120,7 +120,7 @@ pipeline {
                 dir('application') {
                     script {
                         // Bring up backend + db in detached mode
-                        sh 'docker-compose up -d'
+                        sh 'docker compose up -d'
 
                         // Run Python test container
                         sh '''
@@ -129,7 +129,7 @@ pipeline {
                         '''
 
                         // Tear down containers
-                        sh 'docker-compose down'
+                        sh 'docker compose down'
                     }
                 }
             }
@@ -364,32 +364,33 @@ pipeline {
         always {
             echo "Pipeline completed. Notifying dashboard..."
             script {
-                // Make sure the API is resolved properly
-                def dashboardApi = env.DASHBOARD_API
-                echo "Dashboard API: ${dashboardApi}"
+                def headers = [[name: 'Content-Type', value: 'application/json']]
 
-                def payload = [
-                    version: "build-${env.BUILD_NUMBER ?: '1.0.0'}",
-                    environment: params.ENVIRONMENT,
-                    success: (currentBuild.currentResult == 'SUCCESS'),
-                    notes: "Jenkins build ${env.BUILD_NUMBER} - ${currentBuild.currentResult}"
-                ]
+                echo "Dashboard API: ${env.DASHBOARD_API}"
+                echo "Dashboard URL: ${env.DASHBOARD_URL}"
+
+                def payload = """{
+                    "version": "${BUILD_TAG}",
+                    "environment": "${DEPLOY_ENV}",
+                    "success": ${currentBuild.currentResult == 'SUCCESS'},
+                    "notes": "Jenkins build ${env.BUILD_NUMBER} - ${currentBuild.currentResult}"
+                }"""
 
                 try {
-                    def response = httpRequest(
+                    httpRequest(
                         httpMode: 'POST',
-                        url: dashboardApi,
+                        url: env.DASHBOARD_API,
+                        headers: headers,
+                        requestBody: payload,
                         contentType: 'APPLICATION_JSON',
-                        requestBody: groovy.json.JsonOutput.toJson(payload),
-                        validResponseCodes: '100:599', // accept any valid HTTP response
-                        consoleLogResponseBody: true
+                        validResponseCodes: '100:399'
                     )
-                    echo "Dashboard notified successfully. Response: ${response.content}"
+                    echo "Dashboard notified successfully."
                 } catch (e) {
                     echo "Failed to notify dashboard: ${e.getMessage()}"
-                    // optionally: do not fail the build just for notification
                 }
             }
         }
     }
+
 }
