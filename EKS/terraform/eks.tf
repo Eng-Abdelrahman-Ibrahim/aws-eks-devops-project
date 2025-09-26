@@ -10,26 +10,6 @@ resource "aws_launch_template" "myapp_nodes" {
   user_data = base64encode(<<-EOT
                 #!/bin/bash
                 set -e
-                # Install EKS-supported containerd
-                dnf install -y yum-utils
-                yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
-                dnf install -y containerd.io
-
-                # Configure containerd for CRI
-                mkdir -p /etc/containerd
-                containerd config default | tee /etc/containerd/config.toml
-
-                # Enable systemd cgroups
-                sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
-
-                # Add Nexus registry mirror
-                sed -i '/registry.mirrors]/a\\
-  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."${data.kubernetes_service.nexus_docker_lb.status[0].load_balancer[0].ingress[0].hostname}:8082"]\\
-    endpoint = ["http://${data.kubernetes_service.nexus_docker_lb.status[0].load_balancer[0].ingress[0].hostname}:8082"]' /etc/containerd/config.toml
-
-                systemctl enable containerd
-                systemctl restart containerd
-
                 # Bootstrap EKS
                 /etc/eks/bootstrap.sh ${local.name}
                 EOT
