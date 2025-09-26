@@ -1,20 +1,39 @@
 pipeline {
     agent any
 
+    parameters {
+        choice(
+            name: 'ENVIRONMENT',
+            choices: ['dev', 'test', 'prod'],
+            description: 'Select the environment to deploy'
+        )
+    }
+
     tools {
         maven "Maven"
         nodejs "NodeJS"
     }
 
     environment {
+
+        //Deployment environment
+        DEPLOY_ENV = "${params.ENVIRONMENT}" 
+
         // Docker images
         BACKEND_IMAGE = 'abdelrahmandevops/devops-backend'
         FRONTEND_IMAGE = 'abdelrahmandevops/devops-frontend'
         BUILD_TAG = "build-${env.BUILD_NUMBER}"
+        IMAGE_TAG = "build-${env.BUILD_NUMBER}-${params.ENVIRONMENT}"
 
         // Dashboard API
-        DASHBOARD_API = "http://app.local/api/deployments"
-        DASHBOARD_URL = "http://app.local/app"
+        DASHBOARD_API_DEV = "http://dev.app.local/api/deployments"
+        DASHBOARD_API_TEST = "http://test.app.local/api/deployments"
+        DASHBOARD_API_PROD = "https://prod.app.local/api/deployments"
+
+        //Dashboard URL (for reference)
+        DASHBOARD_URL_DEV = "http://dev.app.local"
+        DASHBOARD_URL_TEST = "http://test.app.local"
+        DASHBOARD_URL_PROD = "https://prod.app.local"
 
         // Docker Host
         DOCKER_HOST = 'unix:///var/run/docker.sock'
@@ -38,6 +57,26 @@ pipeline {
     }
 
     stages {
+
+        stage ('Select Environment') {
+            steps {
+                script {
+                    if (DEPLOY_ENV == 'dev') {
+                        env.DASHBOARD_API = env.DASHBOARD_API_DEV
+                        env.DASHBOARD_URL = env.DASHBOARD_URL_DEV
+                    } else if (DEPLOY_ENV == 'test') {
+                        env.DASHBOARD_API = env.DASHBOARD_API_TEST
+                        env.DASHBOARD_URL = env.DASHBOARD_URL_TEST
+                    } else if (DEPLOY_ENV == 'prod') {
+                        env.DASHBOARD_API = env.DASHBOARD_API_PROD
+                        env.DASHBOARD_URL = env.DASHBOARD_URL_PROD
+                    }
+                    echo "Selected deployment environment: ${DEPLOY_ENV}"
+                    echo "Dashboard API set to: ${env.DASHBOARD_API}"
+                }
+            }
+            
+        }
 
         stage('Clean Workspace') {
             steps { cleanWs() }
@@ -169,34 +208,65 @@ pipeline {
         stage('Build and Push Docker Images') {
             steps {
                 script {
+                    // Define image tag with environment
+                    def IMAGE_TAG = "${BUILD_TAG}-${params.ENVIRONMENT}"
+
                     // Build backend image
                     sh """
-                        docker build -t ${BACKEND_IMAGE}:${BUILD_TAG} --build-arg JAR_FILE=application/target/backend-app.jar ./application
-                        docker tag ${BACKEND_IMAGE}:${BUILD_TAG} ${BACKEND_IMAGE}:latest
+                        docker build -t ${BACKEND_IMAGE}:${IMAGE_TAG} \
+                            --build-arg JAR_FILE=application/target/backend-app.jar ./application
+
                     """
+
                     // Build frontend image
                     sh """
-                        docker build -t ${FRONTEND_IMAGE}:${BUILD_TAG} --build-arg BUILD_DIR=application/frontend/build --build-arg REACT_APP_API_URL=http://${NEXUS_URL}/app/api ./application/frontend
-                        docker tag ${FRONTEND_IMAGE}:${BUILD_TAG} ${FRONTEND_IMAGE}:latest
+                        docker build -t ${FRONTEND_IMAGE}:${IMAGE_TAG} \
+                            --build-arg BUILD_DIR=application/frontend/build \
+                            --build-arg REACT_APP_API_URL=${DASHBOARD_API} \
+                            ./application/frontend
                     """
-                    // Push to Docker Hub
-                    sh """
-                        docker push ${BACKEND_IMAGE}:${BUILD_TAG}
-                        docker push ${BACKEND_IMAGE}:latest
-                        docker push ${FRONTEND_IMAGE}:${BUILD_TAG}
-                        docker push ${FRONTEND_IMAGE}:latest
-                    """
-                    // Push to Nexus
-                    sh """
-                        docker tag ${BACKEND_IMAGE}:${BUILD_TAG} ${NEXUS_REGISTRY}/repository/docker-hosted/devops-backend:${BUILD_TAG}
-                        docker push ${NEXUS_REGISTRY}/repository/docker-hosted/devops-backend:${BUILD_TAG}
 
-                        docker tag ${FRONTEND_IMAGE}:${BUILD_TAG} ${NEXUS_REGISTRY}/repository/docker-hosted/devops-frontend:${BUILD_TAG}
-                        docker push ${NEXUS_REGISTRY}/repository/docker-hosted/devops-frontend:${BUILD_TAG}
+
+                    // === Push to Docker Hub ===
+                    sh """
+                        docker push ${BACKEND_IMAGE}:${IMAGE_TAG}
+                        docker push ${FRONTEND_IMAGE}:${IMAGE_TAG}
                     """
+
+                    // If PROD, also tag and push "latest"
+                    if (params.ENVIRONMENT == "prod") {
+                        sh """
+                            docker tag ${BACKEND_IMAGE}:${IMAGE_TAG} ${BACKEND_IMAGE}:latest
+                            docker tag ${FRONTEND_IMAGE}:${IMAGE_TAG} ${FRONTEND_IMAGE}:latest
+
+                            docker push ${BACKEND_IMAGE}:latest
+                            docker push ${FRONTEND_IMAGE}:latest
+                        """
+                    }
+
+                    // === Push to Nexus ===
+                    sh """
+                        docker tag ${BACKEND_IMAGE}:${IMAGE_TAG} ${NEXUS_REGISTRY}/repository/docker-hosted/devops-backend:${IMAGE_TAG}
+                        docker push ${NEXUS_REGISTRY}/repository/docker-hosted/devops-backend:${IMAGE_TAG}
+
+                        docker tag ${FRONTEND_IMAGE}:${IMAGE_TAG} ${NEXUS_REGISTRY}/repository/docker-hosted/devops-frontend:${IMAGE_TAG}
+                        docker push ${NEXUS_REGISTRY}/repository/docker-hosted/devops-frontend:${IMAGE_TAG}
+                    """
+
+                    // If PROD, also push "latest" to Nexus
+                    if (params.ENVIRONMENT == "prod") {
+                        sh """
+                            docker tag ${BACKEND_IMAGE}:${IMAGE_TAG} ${NEXUS_REGISTRY}/repository/docker-hosted/devops-backend:latest
+                            docker tag ${FRONTEND_IMAGE}:${IMAGE_TAG} ${NEXUS_REGISTRY}/repository/docker-hosted/devops-frontend:latest
+
+                            docker push ${NEXUS_REGISTRY}/repository/docker-hosted/devops-backend:latest
+                            docker push ${NEXUS_REGISTRY}/repository/docker-hosted/devops-frontend:latest
+                        """
+                    }
                 }
             }
         }
+
 
         stage('Deploy with Ansible via SSM') {
             steps {
@@ -217,7 +287,7 @@ pipeline {
                                     "export KUBECONFIG=/home/ec2-user/.kube/config",
                                     "export PATH=\\$PATH:/usr/local/bin",
                                     "cd /home/ec2-user/ansible",
-                                    "ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml -v --force-handlers --skip-tags deprecation_warnings"
+                                    "ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml -e "deploy_env=${params.ENVIRONMENT}" -e "namespace=app-${params.ENVIRONMENT}" -e "build_tag=${IMAGE_TAG}" -v --force-handlers --skip-tags deprecation_warnings"
                                 ]' \
                                 --region us-east-1 \
                                 --output json > ssm_command.json
@@ -283,7 +353,7 @@ pipeline {
 
                 def payload = """{
                     "version": "build-${env.BUILD_NUMBER ?: '1.0.0'}",
-                    "environment": "DEV",
+                    "environment": "${params.ENVIRONMENT}",
                     "success": ${currentBuild.currentResult == 'SUCCESS'},
                     "notes": "Jenkins build ${env.BUILD_NUMBER} - ${currentBuild.currentResult}"
                 }"""
@@ -303,8 +373,6 @@ pipeline {
                 }
             }
 
-            echo "Cleaning up Docker resources..."
-            sh 'cd application && docker compose down || true'
         }
     }
 }

@@ -1,10 +1,12 @@
+#ansible/roles/jenkins/tasks/main.yml
+---
 - name: Update packages
-  yum:
+  ansible.builtin.dnf:
     name: '*'
     state: latest
 
 - name: Add Jenkins repo
-  get_url:
+  ansible.builtin.get_url:
     url: https://pkg.jenkins.io/redhat-stable/jenkins.repo
     dest: /etc/yum.repos.d/jenkins.repo
 
@@ -13,14 +15,26 @@
     state: present
     key: https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
 
-- name: Install Java 21
-  yum:
+- name: Install Java 21 (Corretto)
+  ansible.builtin.dnf:
     name: java-21-amazon-corretto-devel
     state: present
   ignore_errors: yes  
 
+- name: Install base packages
+  ansible.builtin.dnf:
+    name:
+      - git
+      - wget
+      - unzip
+      - tar
+      - jq
+      - python3
+      - python3-pip
+    state: present
+
 - name: Install Jenkins
-  yum:
+  ansible.builtin.dnf:
     name: jenkins
     state: latest
 
@@ -29,5 +43,54 @@
     name: jenkins
     enabled: true
     state: started
-    
+
+# ---- Tools required for pipeline ----
+
+- name: Install Docker
+  ansible.builtin.dnf:
+    name: docker
+    state: present
+
+- name: Enable and start Docker
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Add Jenkins user to docker group
+  ansible.builtin.user:
+    name: jenkins
+    groups: docker
+    append: yes
+
+- name: Install AWS CLI v2
+  ansible.builtin.get_url:
+    url: "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
+    dest: /tmp/awscliv2.zip
+  register: awscli_download
+
+- name: Unzip AWS CLI
+  ansible.builtin.unarchive:
+    src: /tmp/awscliv2.zip
+    dest: /tmp
+    remote_src: yes
+  when: awscli_download.changed
+
+- name: Install AWS CLI
+  ansible.builtin.command: /tmp/aws/install --update
+  args:
+    creates: /usr/local/bin/aws
+
+- name: Install Maven
+  ansible.builtin.dnf:
+    name: maven
+    state: present
+
+- name: Install Node.js and npm (Node 18 LTS)
+  ansible.builtin.shell: |
+    curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
+    dnf install -y nodejs
+  args:
+    creates: /usr/bin/node
+
 - import_tasks: env.yml

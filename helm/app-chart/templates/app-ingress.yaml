@@ -8,7 +8,7 @@ metadata:
     kubernetes.io/ingress.class: nginx
 spec:
   rules:
-    - host: app.local
+    - host: {{ .Values.ingress.host }}
       http:
         paths:
           - path: /app

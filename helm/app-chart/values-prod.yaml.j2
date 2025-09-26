@@ -1,19 +1,21 @@
-#values-dev.yaml.j2
-namespace: dev
+#values-prod.yaml.j2
+namespace: prod
 ingress:
-  host: dev.app.local
+  host: prod.app.local
 
 backend:
   replicas: 2
   image:
     repository: "{{ nexus_registry_url }}/repository/docker-hosted/devops-backend"
     tag: "{{ build_tag }}"
+    pullPolicy: Always
 
 frontend:
   replicas: 2
   image:
     repository: "{{ nexus_registry_url }}/repository/docker-hosted/devops-frontend"
     tag: "{{ build_tag }}"
+    pullPolicy: Always
 
 nginxLBHost: "{{ nginx_lb_hostname }}"
 
@@ -30,4 +32,3 @@ postgresConfig:
 
 postgres:
   releaseName: "postgres"
-

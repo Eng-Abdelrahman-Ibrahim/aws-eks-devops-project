@@ -1,12 +1,12 @@
-#values-test.yaml
-namespace: test
+#values-prod.yaml
+namespace: prod
 
 postgres:
   replicas: 1
   image:
     repository: "postgres"
     tag: "14"
-  releaseName: "postgres-test"
+  releaseName: "postgres-prod"
 
 postgresConfig:
   db: "myappdb"

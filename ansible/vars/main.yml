@@ -4,16 +4,22 @@
 eks_cluster_name: myapp-eks
 eks_region: us-east-1
 
-# Jenkins Plugins
 jenkins_plugins:
-  - git
-  - workflow-aggregator
-  - credentials-binding
-  - configuration-as-code
-  - docker-plugin
-  - kubernetes
-  - blueocean
-  - http_request
+  - git                         # Git SCM
+  - workflow-aggregator         # Pipeline
+  - pipeline-utility-steps      # archiveArtifacts, etc.
+  - credentials-binding         # for withCredentials
+  - plain-credentials           # for usernamePassword
+  - configuration-as-code       # manage Jenkins as code
+  - docker-plugin               # Docker support
+  - docker-workflow             # Docker in pipelines
+  - nodejs                      # NodeJS tool support
+  - maven-plugin                # Maven tool support
+  - aws-credentials             # AWS credentials binding
+  - http_request                # for httpRequest step
+  - ws-cleanup                  # cleanWs()
+  - blueocean                   # optional UI
+  - kubernetes                  # if you plan to integrate with K8s
   
 # Nexus Configuration
 nexus_docker_repo: "docker-hosted"
@@ -22,6 +28,5 @@ frontend_name: "devops-frontend"
 image_tag: "latest"
 
 # Application namespace
-app_namespace: "eks-build"
-app_namespace_dev: "dev"
-app_namespace_test: "test"
+# Application namespace (managed dynamically by Jenkins)
+# namespace=app-dev / app-test / app-prod will be passed
