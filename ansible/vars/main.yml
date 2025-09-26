@@ -25,7 +25,6 @@ jenkins_plugins:
 nexus_docker_repo: "docker-hosted"
 backend_name: "devops-backend"
 frontend_name: "devops-frontend"
-image_tag: "latest"
 
 # Application namespace
 # Application namespace (managed dynamically by Jenkins)
