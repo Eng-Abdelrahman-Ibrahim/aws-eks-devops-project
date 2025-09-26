@@ -46,51 +46,69 @@
 
 # ---- Tools required for pipeline ----
 
-- name: Install Docker
-  ansible.builtin.dnf:
-    name: docker
+# ========================================
+# DOCKER INSTALLATION FOR AMAZON LINUX 2023
+# ========================================
+
+- name: Install Docker (Amazon Linux 2023)
+  ansible.builtin.dnf:  # Use dnf instead of yum
+    name:
+      - docker
     state: present
 
-- name: Enable and start Docker
+- name: Start and enable Docker service
   ansible.builtin.systemd:
     name: docker
-    enabled: true
     state: started
+    enabled: yes
 
-- name: Add Jenkins user to docker group
+- name: Add current user to docker group
   ansible.builtin.user:
-    name: jenkins
+    name: "{{ ansible_user | default('ec2-user') }}"
     groups: docker
     append: yes
+
+- name: Create docker group if it doesn't exist
+  ansible.builtin.group:
+    name: docker
+    state: present
 
 - name: Install AWS CLI v2
   ansible.builtin.get_url:
     url: "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
-    dest: /tmp/awscliv2.zip
+    dest: "/tmp/awscliv2.zip"
   register: awscli_download
 
 - name: Unzip AWS CLI
   ansible.builtin.unarchive:
-    src: /tmp/awscliv2.zip
-    dest: /tmp
+    src: "/tmp/awscliv2.zip"
+    dest: "/tmp/"
     remote_src: yes
   when: awscli_download.changed
 
 - name: Install AWS CLI
-  ansible.builtin.command: /tmp/aws/install --update
+  command: /tmp/aws/install
   args:
     creates: /usr/local/bin/aws
 
-- name: Install Maven
+- name: Get AWS Account ID
+  shell: aws sts get-caller-identity --query Account --output text
+  register: aws_account_result
+
+- set_fact:
+    aws_account_id: "{{ aws_account_result.stdout }}"
+
+# ---- SSM Agent ----
+- name: Install SSM Agent
   ansible.builtin.dnf:
-    name: maven
+    name: amazon-ssm-agent
     state: present
 
-- name: Install Node.js and npm (Node 18 LTS)
-  ansible.builtin.shell: |
-    curl -fsSL https://rpm.nodesource.com/setup_18.x | bash -
-    dnf install -y nodejs
-  args:
-    creates: /usr/bin/node
+- name: Enable and start SSM Agent
+  ansible.builtin.systemd:
+    name: amazon-ssm-agent
+    enabled: true
+    state: started
+
 
 - import_tasks: env.yml
