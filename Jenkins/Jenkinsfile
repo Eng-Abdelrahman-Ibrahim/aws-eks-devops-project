@@ -22,8 +22,8 @@ pipeline {
         // Docker images
         BACKEND_IMAGE = 'abdelrahmandevops/devops-backend'
         FRONTEND_IMAGE = 'abdelrahmandevops/devops-frontend'
-        BUILD_TAG = "build-${env.BUILD_NUMBER}"
-        IMAGE_TAG = "build-${env.BUILD_NUMBER}-${params.ENVIRONMENT}"
+        BUILD_TAG = "build-${env.BUILD_NUMBER}"-${params.ENVIRONMENT}""
+        IMAGE_TAG = "build-${env.BUILD_NUMBER}"-${params.ENVIRONMENT}""
 
         // Dashboard API
         DASHBOARD_API_DEV = "http://dev.app.local/api/deployments"
@@ -280,9 +280,13 @@ pipeline {
                                 --comment "Deploy Helm chart via Ansible" \
                                 --parameters 'commands=[
                                     "export KUBECONFIG=/home/ec2-user/.kube/config",
-                                    "export PATH=\\\\$PATH:/usr/local/bin",
+                                    "export PATH=\$PATH:/usr/local/bin",
                                     "cd /home/ec2-user/ansible",
-                                    "ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml -e \\"deploy_env=${params.ENVIRONMENT}\\" -e \\"namespace=app-${params.ENVIRONMENT}\\" -e \\"build_tag=${IMAGE_TAG}\\" -v --force-handlers --skip-tags deprecation_warnings"
+                                    "ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml \
+                                    -e "deploy_env=${params.ENVIRONMENT}" \
+                                    -e "namespace=app-${params.ENVIRONMENT}" \
+                                    -e "build_tag=${BUILD_TAG}" \
+                                    -v --force-handlers --skip-tags deprecation_warnings"
                                 ]' \
                                 --region us-east-1 \
                                 --output json > ssm_command.json

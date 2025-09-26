@@ -1,4 +1,4 @@
-# playbooks/deploy-app.yml
+# playbooks/deploy-helm.yml
 - name: Deploy Backend, Frontend, and Postgres on EKS
   hosts: localhost
   connection: local
@@ -7,4 +7,4 @@
     - ../vars/terraform-generated.yml
     - ../vars/main.yml
   roles:
-    - k8s
+    - helm
