@@ -128,8 +128,8 @@ pipeline {
                         env.NEXUS_URL = sh(
                             script: """
                                 aws elbv2 describe-load-balancers \
-                                --query "LoadBalancers[?starts_with(DNSName, 'a2ce756cee7ab4bd4887d38870490b2b')].DNSName" \
-                                --output text
+                                --query "LoadBalancers[?contains(DNSName, 'elb')].[DNSName]" \
+                                --output text | grep -m1 us-east-1
                             """,
                             returnStdout: true
                         ).trim()
