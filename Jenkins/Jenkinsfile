@@ -124,7 +124,7 @@ pipeline {
                     secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
                 ]]) {
                     script {
-                        
+
                         // Read Nexus registry URL from Ansible-created file
                         env.NEXUS_REGISTRY = sh(
                             script: "source /etc/profile.d/nexus_registry.sh && echo \$NEXUS_REGISTRY",
@@ -192,7 +192,7 @@ pipeline {
                                                     usernameVariable: 'NEXUS_USER', 
                                                     passwordVariable: 'NEXUS_PASS')]) {
                         sh '''
-                            echo $NEXUS_PASS | docker login $NEXUS_URL -u $NEXUS_USER --password-stdin
+                            echo $NEXUS_PASS | docker login $NEXUS_REGISTRY -u $NEXUS_USER --password-stdin
                             docker info | grep Server
                         '''
                     }

@@ -44,6 +44,24 @@
     enabled: true
     state: started
 
+- name: Install AWS CLI v2
+  ansible.builtin.get_url:
+    url: "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
+    dest: "/tmp/awscliv2.zip"
+  register: awscli_download
+
+- name: Unzip AWS CLI
+  ansible.builtin.unarchive:
+    src: "/tmp/awscliv2.zip"
+    dest: "/tmp/"
+    remote_src: yes
+  when: awscli_download.changed
+
+- name: Install AWS CLI
+  command: /tmp/aws/install
+  args:
+    creates: /usr/local/bin/aws
+
 # ---- Tools required for pipeline ----
 
 # ========================================
@@ -62,34 +80,16 @@
     state: started
     enabled: yes
 
-- name: Add current user to docker group
-  ansible.builtin.user:
-    name: jenkins
-    groups: docker
-    append: yes
-
 - name: Create docker group if it doesn't exist
   ansible.builtin.group:
     name: docker
     state: present
 
-- name: Install AWS CLI v2
-  ansible.builtin.get_url:
-    url: "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
-    dest: "/tmp/awscliv2.zip"
-  register: awscli_download
-
-- name: Unzip AWS CLI
-  ansible.builtin.unarchive:
-    src: "/tmp/awscliv2.zip"
-    dest: "/tmp/"
-    remote_src: yes
-  when: awscli_download.changed
-
-- name: Install AWS CLI
-  command: /tmp/aws/install
-  args:
-    creates: /usr/local/bin/aws
+- name: Add current user to docker group
+  ansible.builtin.user:
+    name: jenkins
+    groups: docker
+    append: yes
 
 - name: Ensure Docker config directory exists
   ansible.builtin.file:
