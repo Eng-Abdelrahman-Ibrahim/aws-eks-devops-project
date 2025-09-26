@@ -128,8 +128,17 @@ pipeline {
                         env.NEXUS_URL = sh(
                             script: """
                                 aws elbv2 describe-load-balancers \
-                                --query "LoadBalancers[?contains(DNSName, 'elb')].[DNSName]" \
-                                --output text | grep -m1 us-east-1
+                                --query "LoadBalancers[].LoadBalancerArn" \
+                                --output text | tr '\\t' '\\n' | \
+                                while read arn; do
+                                aws elbv2 describe-tags --resource-arns "$arn" \
+                                    --query "TagDescriptions[?Tags[?Key=='kubernetes.io/service-name' && Value=='eks-build/nexus-docker-service']].ResourceArn" \
+                                    --output text
+                                done | while read nexus_arn; do
+                                aws elbv2 describe-load-balancers --load-balancer-arns "$nexus_arn" \
+                                    --query "LoadBalancers[].DNSName" \
+                                    --output text
+                                done
                             """,
                             returnStdout: true
                         ).trim()
