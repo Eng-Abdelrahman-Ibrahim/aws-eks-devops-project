@@ -283,9 +283,9 @@ pipeline {
                                     "export PATH=\$PATH:/usr/local/bin",
                                     "cd /home/ec2-user/ansible",
                                     "ansible-playbook -i inventory/hosts.ini playbooks/deploy-helm.yml \
-                                    -e "deploy_env=${params.ENVIRONMENT}" \
-                                    -e "namespace=app-${params.ENVIRONMENT}" \
-                                    -e "build_tag=${BUILD_TAG}" \
+                                    -e '\''deploy_env=${params.ENVIRONMENT}'\'' \
+                                    -e '\''namespace=app-${params.ENVIRONMENT}'\'' \
+                                    -e '\''build_tag=${BUILD_TAG}'\'' \
                                     -v --force-handlers --skip-tags deprecation_warnings"
                                 ]' \
                                 --region us-east-1 \
