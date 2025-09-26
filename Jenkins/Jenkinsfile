@@ -23,7 +23,7 @@ pipeline {
         BACKEND_IMAGE = 'abdelrahmandevops/devops-backend'
         FRONTEND_IMAGE = 'abdelrahmandevops/devops-frontend'
         BUILD_TAG = "build-${env.BUILD_NUMBER}-${params.ENVIRONMENT}"
-        IMAGE_TAG = "build-${env.BUILD_NUMBER}-${params.ENVIRONMENT}"
+        IMAGE_TAG = BUILD_TAG
 
         // Dashboard API
         DASHBOARD_API_DEV = "http://dev.app.local/api/deployments"
