@@ -3,7 +3,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: postgres-config
-  namespace: {{ .Values.namespace }}
+  namespace: {{ .Release.namespace }}
 data:
   POSTGRES_DB: "myappdb"
   POSTGRES_USER: "appuser"
