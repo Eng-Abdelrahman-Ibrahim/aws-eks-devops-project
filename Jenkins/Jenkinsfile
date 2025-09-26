@@ -23,7 +23,6 @@ pipeline {
         BACKEND_IMAGE = 'abdelrahmandevops/devops-backend'
         FRONTEND_IMAGE = 'abdelrahmandevops/devops-frontend'
         BUILD_TAG = "build-${env.BUILD_NUMBER}-${params.ENVIRONMENT}"
-        IMAGE_TAG = BUILD_TAG
 
         // Dashboard API
         DASHBOARD_API_DEV = "http://dev.app.local/api/deployments"
@@ -203,19 +202,17 @@ pipeline {
         stage('Build and Push Docker Images') {
             steps {
                 script {
-                    // Define image tag with environment
-                    def IMAGE_TAG = "${BUILD_TAG}-${params.ENVIRONMENT}"
 
                     // Build backend image
                     sh """
-                        docker build -t ${BACKEND_IMAGE}:${IMAGE_TAG} \
+                        docker build -t ${BACKEND_IMAGE}:${BUILD_TAG} \
                             --build-arg JAR_FILE=application/target/backend-app.jar ./application
 
                     """
 
                     // Build frontend image
                     sh """
-                        docker build -t ${FRONTEND_IMAGE}:${IMAGE_TAG} \
+                        docker build -t ${FRONTEND_IMAGE}:${BUILD_TAG} \
                             --build-arg BUILD_DIR=application/frontend/build \
                             --build-arg REACT_APP_API_URL=${DASHBOARD_API} \
                             ./application/frontend
@@ -224,15 +221,15 @@ pipeline {
 
                     // === Push to Docker Hub ===
                     sh """
-                        docker push ${BACKEND_IMAGE}:${IMAGE_TAG}
-                        docker push ${FRONTEND_IMAGE}:${IMAGE_TAG}
+                        docker push ${BACKEND_IMAGE}:${BUILD_TAG}
+                        docker push ${FRONTEND_IMAGE}:${BUILD_TAG}
                     """
 
                     // If PROD, also tag and push "latest"
                     if (params.ENVIRONMENT == "prod") {
                         sh """
-                            docker tag ${BACKEND_IMAGE}:${IMAGE_TAG} ${BACKEND_IMAGE}:latest
-                            docker tag ${FRONTEND_IMAGE}:${IMAGE_TAG} ${FRONTEND_IMAGE}:latest
+                            docker tag ${BACKEND_IMAGE}:${BUILD_TAG} ${BACKEND_IMAGE}:latest
+                            docker tag ${FRONTEND_IMAGE}:${BUILD_TAG} ${FRONTEND_IMAGE}:latest
 
                             docker push ${BACKEND_IMAGE}:latest
                             docker push ${FRONTEND_IMAGE}:latest
@@ -241,18 +238,18 @@ pipeline {
 
                     // === Push to Nexus ===
                     sh """
-                        docker tag ${BACKEND_IMAGE}:${IMAGE_TAG} ${NEXUS_REGISTRY}/repository/docker-hosted/devops-backend:${IMAGE_TAG}
-                        docker push ${NEXUS_REGISTRY}/repository/docker-hosted/devops-backend:${IMAGE_TAG}
+                        docker tag ${BACKEND_IMAGE}:${BUILD_TAG} ${NEXUS_REGISTRY}/repository/docker-hosted/devops-backend:${BUILD_TAG}
+                        docker push ${NEXUS_REGISTRY}/repository/docker-hosted/devops-backend:${BUILD_TAG}
 
-                        docker tag ${FRONTEND_IMAGE}:${IMAGE_TAG} ${NEXUS_REGISTRY}/repository/docker-hosted/devops-frontend:${IMAGE_TAG}
-                        docker push ${NEXUS_REGISTRY}/repository/docker-hosted/devops-frontend:${IMAGE_TAG}
+                        docker tag ${FRONTEND_IMAGE}:${BUILD_TAG} ${NEXUS_REGISTRY}/repository/docker-hosted/devops-frontend:${BUILD_TAG}
+                        docker push ${NEXUS_REGISTRY}/repository/docker-hosted/devops-frontend:${BUILD_TAG}
                     """
 
                     // If PROD, also push "latest" to Nexus
                     if (params.ENVIRONMENT == "prod") {
                         sh """
-                            docker tag ${BACKEND_IMAGE}:${IMAGE_TAG} ${NEXUS_REGISTRY}/repository/docker-hosted/devops-backend:latest
-                            docker tag ${FRONTEND_IMAGE}:${IMAGE_TAG} ${NEXUS_REGISTRY}/repository/docker-hosted/devops-frontend:latest
+                            docker tag ${BACKEND_IMAGE}:${BUILD_TAG} ${NEXUS_REGISTRY}/repository/docker-hosted/devops-backend:latest
+                            docker tag ${FRONTEND_IMAGE}:${BUILD_TAG} ${NEXUS_REGISTRY}/repository/docker-hosted/devops-frontend:latest
 
                             docker push ${NEXUS_REGISTRY}/repository/docker-hosted/devops-backend:latest
                             docker push ${NEXUS_REGISTRY}/repository/docker-hosted/devops-frontend:latest
