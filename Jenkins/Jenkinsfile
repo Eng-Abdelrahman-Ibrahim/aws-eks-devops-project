@@ -124,19 +124,6 @@ pipeline {
                     secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
                 ]]) {
                     script {
-                        // Fetch Nexus Load Balancer hostname
-                        env.NEXUS_URL = sh(
-                            script: """
-                                aws elbv2 describe-load-balancers \
-                                --query "LoadBalancers[?starts_with(DNSName, 'aaecd96d756bb43c387e1d8547e87ab6')].DNSName" \
-                                --output text
-                            """,
-                            returnStdout: true
-                        ).trim()
-                       // After fetching NEXUS_URL
-                            env.NEXUS_URL = "${env.NEXUS_URL}:8082"
-                            env.NEXUS_REGISTRY = env.NEXUS_URL.replace('http://','')  // <-- use this for docker tag/push
-
 
                         // Fetch Bastion public IP
                         env.BASTION_IP = sh(
@@ -174,6 +161,18 @@ pipeline {
                         ).trim()
                         echo "Ansible Instance ID: ${env.ANSIBLE_INSTANCE_ID}"
                     }
+                }
+            }
+        }
+
+        stage('Load Nexus Registry from Jenkins Server') {
+            steps {
+                script {
+                    env.NEXUS_REGISTRY = sh(
+                        script: "source /etc/profile.d/nexus_registry.sh && echo $NEXUS_REGISTRY",
+                        returnStdout: true
+                    ).trim()
+                    echo "Nexus Registry URL: ${env.NEXUS_REGISTRY}"
                 }
             }
         }
