@@ -125,6 +125,14 @@ pipeline {
                 ]]) {
                     script {
 
+                        script {
+                        // Read Nexus registry URL from Ansible-created file
+                        env.NEXUS_REGISTRY = sh(
+                            script: "source /etc/profile.d/nexus_registry.sh && echo \$NEXUS_REGISTRY",
+                            returnStdout: true
+                        ).trim()
+                        echo "Nexus Registry URL: ${env.NEXUS_REGISTRY}"
+
                         // Fetch Bastion public IP
                         env.BASTION_IP = sh(
                             script: """
@@ -161,18 +169,6 @@ pipeline {
                         ).trim()
                         echo "Ansible Instance ID: ${env.ANSIBLE_INSTANCE_ID}"
                     }
-                }
-            }
-        }
-
-        stage('Load Nexus Registry from Jenkins Server') {
-            steps {
-                script {
-                    env.NEXUS_REGISTRY = sh(
-                        script: "source /etc/profile.d/nexus_registry.sh && echo $NEXUS_REGISTRY",
-                        returnStdout: true
-                    ).trim()
-                    echo "Nexus Registry URL: ${env.NEXUS_REGISTRY}"
                 }
             }
         }
