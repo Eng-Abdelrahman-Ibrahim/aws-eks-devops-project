@@ -186,20 +186,20 @@ pipeline {
                     withCredentials([usernamePassword(credentialsId: 'DockerHub_Credentials', 
                                                     usernameVariable: 'DOCKER_USER', 
                                                     passwordVariable: 'DOCKER_PASS')]) {
-                        sh """
+                        sh '''
                             echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin 
                             docker info | grep Username 
-                        """
+                        '''
                     }
 
                     // Nexus login
                     withCredentials([usernamePassword(credentialsId: 'Nexus_Credentials', 
                                                     usernameVariable: 'NEXUS_USER', 
                                                     passwordVariable: 'NEXUS_PASS')]) {
-                        sh """
+                        sh '''
                             echo $NEXUS_PASS | docker login $NEXUS_URL -u $NEXUS_USER --password-stdin
                             docker info | grep Server
-                        """
+                        '''
                     }
                 }
             }
