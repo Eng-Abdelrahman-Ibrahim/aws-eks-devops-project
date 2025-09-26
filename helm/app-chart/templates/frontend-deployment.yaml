@@ -3,7 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: frontend
-  namespace: {{ .Values.namespace }}
+  namespace: {{ .Release.namespace }}
 spec:
   replicas: {{ .Values.frontend.replicas }}
   selector:
