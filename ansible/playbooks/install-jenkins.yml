@@ -3,6 +3,7 @@
   hosts: jenkins-server
   gather_facts: yes
   become: yes
-
+  vars_files:
+    - ../vars/terraform-generated.yml
   roles:
     - jenkins
