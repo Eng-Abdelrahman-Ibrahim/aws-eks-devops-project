@@ -30,9 +30,9 @@ pipeline {
         DASHBOARD_API_PROD = "https://prod.app.local/api/deployments"
 
         //Dashboard URL (for reference)
-        DASHBOARD_URL_DEV = "http://dev.app.local"
-        DASHBOARD_URL_TEST = "http://test.app.local"
-        DASHBOARD_URL_PROD = "https://prod.app.local"
+        DASHBOARD_URL_DEV = "http://dev.app.local/app"
+        DASHBOARD_URL_TEST = "http://test.app.local/app"
+        DASHBOARD_URL_PROD = "https://prod.app.local/app"
 
         // Docker Host
         DOCKER_HOST = 'unix:///var/run/docker.sock'
@@ -364,17 +364,21 @@ pipeline {
         always {
             echo "Pipeline completed. Notifying dashboard..."
             script {
+                // Prepare HTTP headers
                 def headers = [[name: 'Content-Type', value: 'application/json']]
+                // Force environment to uppercase
+                def envUpper = (DEPLOY_ENV ?: "DEV").toUpperCase()
 
-                echo "Dashboard API: ${env.DASHBOARD_API}"
-                echo "Dashboard URL: ${env.DASHBOARD_URL}"
-
+                // Prepare JSON payload
                 def payload = """{
                     "version": "${BUILD_TAG}",
-                    "environment": "${DEPLOY_ENV}",
+                    "environment": "${envUpper}",
                     "success": ${currentBuild.currentResult == 'SUCCESS'},
                     "notes": "Jenkins build ${env.BUILD_NUMBER} - ${currentBuild.currentResult}"
                 }"""
+
+                echo "Dashboard API: ${env.DASHBOARD_API}"
+                echo "Dashboard URL: ${env.DASHBOARD_URL}"
 
                 try {
                     httpRequest(
