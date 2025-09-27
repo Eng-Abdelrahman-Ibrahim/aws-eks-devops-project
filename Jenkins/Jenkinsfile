@@ -125,7 +125,7 @@ pipeline {
                         // Run Python test container
                         sh '''
                             docker build -f Dockerfile.test -t backend-tests .
-                            docker run --rm --network $(docker network ls | grep bridge | awk '{print $1}') backend-tests
+                            docker run --rm --network application_default backend-tests
                         '''
 
                         // Tear down containers
