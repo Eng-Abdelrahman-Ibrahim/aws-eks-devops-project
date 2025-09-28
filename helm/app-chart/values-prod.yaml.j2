@@ -7,14 +7,14 @@ backend:
   replicas: 2
   image:
     repository: "{{ nexus_registry_url }}/repository/docker-hosted/devops-backend"
-    tag: "{{ build_tag }}"
+    tag: "latest"
     pullPolicy: Always
 
 frontend:
   replicas: 2
   image:
     repository: "{{ nexus_registry_url }}/repository/docker-hosted/devops-frontend"
-    tag: "{{ build_tag }}"
+    tag: "latest"
     pullPolicy: Always
 
 nginxLBHost: "{{ nginx_lb_hostname }}"

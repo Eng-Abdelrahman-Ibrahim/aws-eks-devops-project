@@ -362,10 +362,11 @@ pipeline {
 
     post {
         always {
-            echo "Pipeline completed. Notifying dashboard..."
+
+            echo "Pipeline completed. Waiting 30 seconds before notifying dashboard..."
+            sleep 30  // wait for 30 seconds
+
             script {
-                // Prepare HTTP headers
-                def headers = [[name: 'Content-Type', value: 'application/json']]
                 // Force environment to uppercase
                 def envUpper = (DEPLOY_ENV ?: "DEV").toUpperCase()
 
@@ -384,7 +385,6 @@ pipeline {
                     httpRequest(
                         httpMode: 'POST',
                         url: env.DASHBOARD_API,
-                        headers: headers,
                         requestBody: payload,
                         contentType: 'APPLICATION_JSON',
                         validResponseCodes: '100:399'

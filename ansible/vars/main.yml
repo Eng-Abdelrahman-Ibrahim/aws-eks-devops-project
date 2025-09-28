@@ -20,6 +20,7 @@ jenkins_plugins:
   - ws-cleanup                  # cleanWs()
   - blueocean                   # optional UI
   - kubernetes                  # if you plan to integrate with K8s
+  - generic-webhook-trigger     # for webhook triggers
   
 # Nexus Configuration
 nexus_docker_repo: "docker-hosted"

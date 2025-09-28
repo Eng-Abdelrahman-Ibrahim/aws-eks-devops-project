@@ -158,5 +158,24 @@
     enabled: true
     state: started
 
+# --- Resolve nginx_lb_hostname to IPs ---
+- name: Resolve nginx_lb_hostname to IPs
+  ansible.builtin.set_fact:
+    nginx_lb_ips: "{{ lookup('community.general.dig', nginx_lb_hostname, 'qtype=A') }}"
+  vars:
+    nginx_lb_hostname: "{{ nginx_lb_hostname }}"
+
+- name: Show resolved IPs
+  ansible.builtin.debug:
+    msg: "Resolved {{ nginx_lb_hostname }} -> {{ nginx_lb_ips }}"
+
+# --- Update /etc/hosts with each IP ---
+- name: Add nginx_lb_hostname IPs to /etc/hosts
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    line: "{{ item }} nexus.local dev.app.local test.app.local prod.app.local"
+    state: present
+  loop: "{{ nginx_lb_ips }}"
+  become: true
 
 - import_tasks: env.yml
