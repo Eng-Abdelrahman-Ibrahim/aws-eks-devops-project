@@ -91,3 +91,24 @@ output "nexus_registry_secret_name" {
 output "nexus_docker_lb_hostname" {
   value = data.kubernetes_service.nexus_docker_lb.status[0].load_balancer[0].ingress[0].hostname
 }
+
+
+# ───────────────────────────────
+# Output Worker Node Instance IDs
+# ───────────────────────────────
+
+# Look up worker node instances by tag (set by EKS module)
+# Fetch worker node instances by EKS cluster tag
+data "aws_instances" "eks_workers" {
+  filter {
+    name   = "tag:kubernetes.io/cluster/${module.eks.cluster_name}"
+    values = ["owned"]
+  }
+  instance_state_names = ["running"]
+}
+
+# Expose IDs to remote state
+output "worker_node_instance_ids" {
+  description = "EKS worker node instance IDs"
+  value       = data.aws_instances.eks_workers.ids
+}

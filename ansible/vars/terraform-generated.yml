@@ -4,14 +4,14 @@
 # DO NOT EDIT MANUALLY
 
 # Infrastructure outputs
-nginx_lb_hostname: "a17489283812a4a36aaaa1821e13f51a-1bd6d5fef6f48970.elb.us-east-1.amazonaws.com"
-nexus_docker_lb_hostname: "a7f239fd2aacd43528d3c66d5f20dff9-f0511887575441ff.elb.us-east-1.amazonaws.com"
+nginx_lb_hostname: "ae62d64e35564420396a2401f319696f-8ca66fa2941ef010.elb.us-east-1.amazonaws.com"
+nexus_docker_lb_hostname: "a59879b827b93439ab477af913246ce2-4d45844bb73d2732.elb.us-east-1.amazonaws.com"
 aws_account_id: "068732175550"
 
 # Nexus URLs
-nexus_web_url: "a17489283812a4a36aaaa1821e13f51a-1bd6d5fef6f48970.elb.us-east-1.amazonaws.com/"
-nexus_docker_registry: "a7f239fd2aacd43528d3c66d5f20dff9-f0511887575441ff.elb.us-east-1.amazonaws.com:8082"
-nexus_registry_url: "a7f239fd2aacd43528d3c66d5f20dff9-f0511887575441ff.elb.us-east-1.amazonaws.com:8082"
+nexus_web_url: "ae62d64e35564420396a2401f319696f-8ca66fa2941ef010.elb.us-east-1.amazonaws.com/"
+nexus_docker_registry: "a59879b827b93439ab477af913246ce2-4d45844bb73d2732.elb.us-east-1.amazonaws.com:8082"
+nexus_registry_url: "a59879b827b93439ab477af913246ce2-4d45844bb73d2732.elb.us-east-1.amazonaws.com:8082"
 
 # AWS resources
 eks_role_arn: "arn:aws:iam::068732175550:role/ansible-eks-role"

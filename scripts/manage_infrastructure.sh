@@ -2,11 +2,14 @@
 set -e # Exit on any error
 
 # ──────────────────────────────────────────────
-# Directories
-EKS_DIR="$HOME/GitHub_Repos/aws-eks-devops-project/EKS/terraform"
-TERRAFORM_DIR="$HOME/GitHub_Repos/aws-eks-devops-project/terraform/servers-setup"
-ANSIBLE_DIR="$HOME/GitHub_Repos/aws-eks-devops-project/ansible"
-HELM_DIR="$HOME/GitHub_Repos/aws-eks-devops-project/helm"
+# Get project root (assuming script is in scripts/ directory)
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Define directories relative to project root
+EKS_DIR="$PROJECT_ROOT/EKS/terraform"
+TERRAFORM_DIR="$PROJECT_ROOT/terraform/servers-setup"
+ANSIBLE_DIR="$PROJECT_ROOT/ansible"
+HELM_DIR="$PROJECT_ROOT/helm"
 
 # SSH details
 ANSIBLE_KEY="$HOME/.ssh/deployer-one"
@@ -83,7 +86,7 @@ terraform_apply() {
 
     # Step 4: Prepare SSH key on Ansible EC2 and run playbook
     echo "=== Running Jenkins playbook on Ansible EC2 ==="
-    ssh -tt -i "$ANSIBLE_KEY" $SSH_OPTS \
+    ssh -i "$ANSIBLE_KEY" $SSH_OPTS \
         -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
         "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP" << 'EOF'
 set -e
@@ -110,6 +113,48 @@ ansible-playbook -i inventory/hosts.ini site.yml
 EOF
 
     echo "✅ Ansible Deployments executed successfully from Ansible EC2!"
+
+
+    # Step 5: Configure worker nodes to use Nexus registry
+    echo "=== Configuring EKS worker nodes to use Nexus registry ==="
+    NEXUS_HOST=$(cd "$EKS_DIR" && terraform output -raw nexus_docker_lb_hostname)
+    echo "Using Nexus host: $NEXUS_HOST"
+
+    WORKER_IDS=$(aws ec2 describe-instances \
+    --filters "Name=tag:kubernetes.io/cluster/myapp-eks,Values=owned" \
+    --query "Reservations[].Instances[].InstanceId" --output text)
+
+    echo "Worker node IDs: $WORKER_IDS"
+
+    for ID in $WORKER_IDS; do
+    echo "=== Configuring worker node $ID ==="
+
+   PARAMETERS=$(jq -n --arg nexus "$NEXUS_HOST" '{
+  commands: [
+    "sudo rm -rf /etc/containerd/config.toml",
+    "sudo mkdir -p /etc/containerd", 
+    "sudo containerd config default | sudo tee /etc/containerd/config.toml",
+    "REGISTRY=\"" + $nexus + ":8082\"",
+    "sudo sed -i \"/^[[:space:]]*\\\\[plugins.\\\\\\\"io.containerd.grpc.v1.cri\\\\\\\".registry.configs\\\\]/a\\\\[plugins.\\\\\\\"io.containerd.grpc.v1.cri\\\\\\\".registry.configs.\\\\\\\"$REGISTRY\\\\\\\"]\\\\n  [plugins.\\\\\\\"io.containerd.grpc.v1.cri\\\\\\\".registry.configs.\\\\\\\"$REGISTRY\\\\\\\".tls]\\\\n    ca_file = \\\\\\\"\\\\\\\"\\\\n    cert_file = \\\\\\\"\\\\\\\"\\\\n    insecure_skip_verify = true\\\\n    key_file = \\\\\\\"\\\\\\\"\" /etc/containerd/config.toml",
+    "sudo sed -i \"/^[[:space:]]*\\\\[plugins.\\\\\\\"io.containerd.grpc.v1.cri\\\\\\\".registry.mirrors\\\\]/a\\\\[plugins.\\\\\\\"io.containerd.grpc.v1.cri\\\\\\\".registry.mirrors.\\\\\\\"$REGISTRY\\\\\\\"]\\\\n    endpoint = [\\\\\\\"http://$REGISTRY\\\\\\\"]\" /etc/containerd/config.toml",
+    "sudo systemctl restart containerd"
+  ]
+}')
+
+aws ssm send-command \
+    --targets "Key=InstanceIds,Values=$ID" \
+    --document-name "AWS-RunShellScript" \
+    --comment "Setup containerd for Nexus registry" \
+    --parameters "$PARAMETERS" \
+    --region us-east-1 \
+    --output text
+
+echo "Worker node $ID configured successfully."
+done
+
+    echo "✅ All EKS worker nodes configured successfully!"
+
+    echo "✅ Terraform Apply and Ansible Deployments completed successfully!"
 }
 
 # ──────────────────────────────────────────────
