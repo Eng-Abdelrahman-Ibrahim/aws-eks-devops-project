@@ -41,8 +41,17 @@
         name: nexus-credentials
         namespace: "{{ namespace }}"
       type: kubernetes.io/dockerconfigjson
-      data:
-        .dockerconfigjson: "{{ lookup('community.kubernetes.k8s_docker_config', nexus_docker_registry, username=nexus_user, password=nexus_password) | b64encode }}"
+      stringData:
+        .dockerconfigjson: |
+          {
+            "auths": {
+              "{{ nexus_docker_registry }}": {
+                "username": "{{ nexus_user }}",
+                "password": "{{ nexus_password }}",
+                "auth": "{{ (nexus_user + ':' + nexus_password) | b64encode }}"
+              }
+            }
+          }
 
 - name: Rolling restart App deployments
   command: kubectl rollout restart deployment {{ item }} -n "{{ namespace }}"
