@@ -33,86 +33,86 @@ usage() {
 # In your terraform_apply() function, add this after servers are created:
 
 terraform_apply() {
-#     echo "=== Running Terraform Apply (EKS) ==="
-#     cd "$EKS_DIR"
-#     terraform init -input=false
-#     terraform apply -auto-approve
+    echo "=== Running Terraform Apply (EKS) ==="
+    cd "$EKS_DIR"
+    terraform init -input=false
+    terraform apply -auto-approve
 
-#     echo "=== Running Terraform Apply (servers-setup) ==="
-#     cd "$TERRAFORM_DIR"
-#     terraform init -input=false
-#     terraform apply -auto-approve
+    echo "=== Running Terraform Apply (servers-setup) ==="
+    cd "$TERRAFORM_DIR"
+    terraform init -input=false
+    terraform apply -auto-approve
 
-#     # Step 1: Get bastion public IP and Ansible private IP
-#     BASTION_IP=$(terraform output -raw bastion_public_ip)
-#     ANSIBLE_PRIVATE_IP=$(terraform output -raw ansible_private_ip)
-#     echo "Bastion IP: $BASTION_IP"
-#     echo "Ansible private IP: $ANSIBLE_PRIVATE_IP"
+    # Step 1: Get bastion public IP and Ansible private IP
+    BASTION_IP=$(terraform output -raw bastion_public_ip)
+    ANSIBLE_PRIVATE_IP=$(terraform output -raw ansible_private_ip)
+    echo "Bastion IP: $BASTION_IP"
+    echo "Ansible private IP: $ANSIBLE_PRIVATE_IP"
 
-#     # Also get kubeconfig path from Terraform (EKS module output)
-#     KUBECONFIG_FILE=$(cd "$EKS_DIR" && terraform output -raw kubeconfig_file)
-#     echo "Kubeconfig file: $KUBECONFIG_FILE"
+    # Also get kubeconfig path from Terraform (EKS module output)
+    KUBECONFIG_FILE=$(cd "$EKS_DIR" && terraform output -raw kubeconfig_file)
+    echo "Kubeconfig file: $KUBECONFIG_FILE"
 
-#     # Wait for SSH to be available
-#     echo "=== Waiting for SSH to bastion to be available ==="
-#     sleep 15
+    # Wait for SSH to be available
+    echo "=== Waiting for SSH to bastion to be available ==="
+    sleep 15
 
-#     # Step 2: Copy Ansible and Helm folders to Ansible host via bastion
-#     echo "=== Copying Ansible folder to Ansible EC2 via bastion ==="
-#     scp -i "$ANSIBLE_KEY" $SSH_OPTS \
-#         -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
-#         -r "$ANSIBLE_DIR" "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP:~/"
+    # Step 2: Copy Ansible and Helm folders to Ansible host via bastion
+    echo "=== Copying Ansible folder to Ansible EC2 via bastion ==="
+    scp -i "$ANSIBLE_KEY" $SSH_OPTS \
+        -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
+        -r "$ANSIBLE_DIR" "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP:~/"
 
-#     echo "=== Copying Helm folder to Ansible EC2 via bastion ==="
-#     scp -i "$ANSIBLE_KEY" $SSH_OPTS \
-#         -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
-#         -r "$HELM_DIR" "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP:~/"
+    echo "=== Copying Helm folder to Ansible EC2 via bastion ==="
+    scp -i "$ANSIBLE_KEY" $SSH_OPTS \
+        -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
+        -r "$HELM_DIR" "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP:~/"
 
-#     # Step 2.5: Ensure .kube folder exists and copy kubeconfig
-#     echo "=== Copying kubeconfig file to Ansible EC2 via bastion ==="
-#     ssh -i "$ANSIBLE_KEY" $SSH_OPTS \
-#         -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
-#         "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP" "mkdir -p ~/.kube && chmod 700 ~/.kube"
+    # Step 2.5: Ensure .kube folder exists and copy kubeconfig
+    echo "=== Copying kubeconfig file to Ansible EC2 via bastion ==="
+    ssh -i "$ANSIBLE_KEY" $SSH_OPTS \
+        -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
+        "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP" "mkdir -p ~/.kube && chmod 700 ~/.kube"
 
-#     scp -i "$ANSIBLE_KEY" $SSH_OPTS \
-#         -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
-#         "$KUBECONFIG_FILE" "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP:~/.kube/config"
+    scp -i "$ANSIBLE_KEY" $SSH_OPTS \
+        -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
+        "$KUBECONFIG_FILE" "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP:~/.kube/config"
 
-#     # Step 3: Copy SSH key separately
-#     echo "=== Copying SSH key to Ansible EC2 via bastion ==="
-#     scp -i "$ANSIBLE_KEY" $SSH_OPTS \
-#         -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
-#         "$ANSIBLE_KEY" "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP:~/ansible/"
+    # Step 3: Copy SSH key separately
+    echo "=== Copying SSH key to Ansible EC2 via bastion ==="
+    scp -i "$ANSIBLE_KEY" $SSH_OPTS \
+        -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
+        "$ANSIBLE_KEY" "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP:~/ansible/"
 
-#     # Step 4: Prepare SSH key on Ansible EC2 and run playbook
-#     echo "=== Running Jenkins playbook on Ansible EC2 ==="
-#     ssh -i "$ANSIBLE_KEY" $SSH_OPTS \
-#         -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
-#         "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP" << 'EOF'
-# set -e
+    # Step 4: Prepare SSH key on Ansible EC2 and run playbook
+    echo "=== Running Jenkins playbook on Ansible EC2 ==="
+    ssh -i "$ANSIBLE_KEY" $SSH_OPTS \
+        -o "ProxyCommand=ssh -i $ANSIBLE_KEY $SSH_OPTS -W %h:%p $ANSIBLE_USER@$BASTION_IP" \
+        "$ANSIBLE_USER@$ANSIBLE_PRIVATE_IP" << 'EOF'
+set -e
 
-# echo "=== Remote Ansible structure ==="
-# ls -la ~/ansible/
+echo "=== Remote Ansible structure ==="
+ls -la ~/ansible/
 
-# # Ensure .ssh folder exists
-# mkdir -p ~/.ssh
-# chmod 700 ~/.ssh
+# Ensure .ssh folder exists
+mkdir -p ~/.ssh
+chmod 700 ~/.ssh
 
-# # Copy key to proper location
-# cp ~/ansible/deployer-one ~/.ssh/id_rsa
-# rm -f ~/ansible/deployer-one
-# chmod 600 ~/.ssh/id_rsa
+# Copy key to proper location
+cp ~/ansible/deployer-one ~/.ssh/id_rsa
+rm -f ~/ansible/deployer-one
+chmod 600 ~/.ssh/id_rsa
 
-# # Start ssh-agent and add key
-# eval "$(ssh-agent -s)"
-# ssh-add ~/.ssh/id_rsa
+# Start ssh-agent and add key
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_rsa
 
-# # Run initial playbooks
-# cd ~/ansible
-# ansible-playbook -i inventory/hosts.ini site.yml
-# EOF
+# Run initial playbooks
+cd ~/ansible
+ansible-playbook -i inventory/hosts.ini site.yml
+EOF
 
-#     echo "✅ Ansible Deployments executed successfully from Ansible EC2!"
+    echo "✅ Ansible Deployments executed successfully from Ansible EC2!"
 
 
     # Step 5: Configure worker nodes to use Nexus registry

@@ -30,6 +30,20 @@
     create_namespace: yes
     release_state: present
 
+# Create Docker registry secret for Nexus
+- name: Create Nexus registry secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: nexus-credentials
+        namespace: "{{ namespace }}"
+      type: kubernetes.io/dockerconfigjson
+      data:
+        .dockerconfigjson: "{{ lookup('community.kubernetes.k8s_docker_config', nexus_docker_registry, username=nexus_user, password=nexus_password) | b64encode }}"
+
 - name: Rolling restart App deployments
   command: kubectl rollout restart deployment {{ item }} -n "{{ namespace }}"
   loop:

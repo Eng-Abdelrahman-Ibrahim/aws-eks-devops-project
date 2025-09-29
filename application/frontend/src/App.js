@@ -44,7 +44,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-100 p-8 font-sans">
       <div className="max-w-6xl mx-auto bg-white shadow-md rounded-lg p-6">
-        <h1 className="text-3xl font-bold mb-4 text-blue-600">Jojo's Dashboard</h1>
+        <h1 className="text-3xl font-bold mb-4 text-blue-600">DevOps Dashboard</h1>
         <p className="text-lg mb-6">
           <span className="font-semibold">Backend Health:</span>{" "}
           <span className={health === 'OK' ? 'text-green-600' : 'text-red-600'}>

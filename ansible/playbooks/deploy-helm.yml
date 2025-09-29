@@ -6,5 +6,6 @@
   vars_files:
     - ../vars/terraform-generated.yml
     - ../vars/main.yml
+    - ../vars/secrets.yml
   roles:
     - helm
