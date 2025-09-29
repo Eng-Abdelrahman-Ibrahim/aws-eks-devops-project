@@ -5,6 +5,14 @@
     state: present
   become: yes
 
+- name: Install Python Kubernetes client
+  ansible.builtin.pip:
+    name:
+      - kubernetes
+      - openshift      
+    executable: pip3
+  become: yes
+
 - name: Ensure yq (YAML processor) is installed
   ansible.builtin.get_url:
     url: https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
