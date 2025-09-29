@@ -363,8 +363,8 @@ pipeline {
     post {
         always {
 
-            echo "Pipeline completed. Waiting 30 seconds before notifying dashboard..."
-            sleep 30  // wait for 30 seconds
+            echo "Pipeline completed. Waiting 60 seconds before notifying dashboard..."
+            sleep 60  // wait for 60 seconds
 
             script {
                 // Force environment to uppercase
@@ -388,6 +388,7 @@ pipeline {
                         requestBody: payload,
                         contentType: 'APPLICATION_JSON',
                         validResponseCodes: '100:399'
+                        timeout: 60
                     )
                     echo "Dashboard notified successfully."
                 } catch (e) {
