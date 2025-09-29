@@ -388,7 +388,6 @@ pipeline {
                         requestBody: payload,
                         contentType: 'APPLICATION_JSON',
                         validResponseCodes: '100:399'
-                        timeout: 60
                     )
                     echo "Dashboard notified successfully."
                 } catch (e) {
