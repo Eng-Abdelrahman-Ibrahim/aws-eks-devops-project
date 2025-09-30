@@ -190,6 +190,7 @@ resource "aws_instance" "jenkins" {
   ami                         = data.aws_ami.amazon_linux_2023.id
   instance_type               = "t3.medium"
   key_name                    = aws_key_pair.deployer_one.key_name
+  iam_instance_profile        = aws_iam_instance_profile.jenkins_profile.name
   vpc_security_group_ids      = [aws_security_group.jenkins_sg.id]
   subnet_id                   = element(data.terraform_remote_state.eks_vpc.outputs.public_subnets, 1)
   associate_public_ip_address = true

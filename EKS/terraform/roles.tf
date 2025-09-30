@@ -41,4 +41,10 @@ resource "aws_iam_instance_profile" "ansible_profile" {
   role = aws_iam_role.ansible_role.name
 }
 
+# Attach CloudWatch Agent Policy
+resource "aws_iam_role_policy_attachment" "cloudwatch_agent_attach" {
+  role       = aws_iam_role.ansible_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+}
+
 

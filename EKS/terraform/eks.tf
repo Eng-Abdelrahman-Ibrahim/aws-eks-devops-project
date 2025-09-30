@@ -8,18 +8,69 @@ resource "aws_launch_template" "myapp_nodes" {
   name_prefix = "myapp-nodes-"
 
   user_data = base64encode(<<-EOT
-                #!/bin/bash
-                set -e
-                # Bootstrap EKS
-                /etc/eks/bootstrap.sh ${local.name}
-                EOT
-    )
+    #!/bin/bash
+    set -e
+
+    # Bootstrap EKS node with cluster name
+    /etc/eks/bootstrap.sh ${local.name}
+
+    # Install CloudWatch Agent
+    yum install -y amazon-cloudwatch-agent
+
+    # Create CloudWatch Agent configuration file
+    cat << EOF > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+    {
+      "agent": {
+        "metrics_collection_interval": 60,
+        "run_as_user": "root"
+      },
+      "metrics": {
+        "append_dimensions": {
+          "InstanceId": "$${aws:InstanceId}"
+        },
+        "metrics_collected": {
+          "cpu": {
+            "measurement": [
+              "cpu_usage_idle",
+              "cpu_usage_user",
+              "cpu_usage_system"
+            ],
+            "metrics_collection_interval": 60,
+            "totalcpu": true
+          },
+          "mem": {
+            "measurement": [
+              "mem_used_percent"
+            ],
+            "metrics_collection_interval": 60
+          },
+          "disk": {
+            "measurement": [
+              "used_percent"
+            ],
+            "metrics_collection_interval": 60,
+            "resources": [
+              "*"
+            ]
+          }
+        }
+      }
+    }
+    EOF
+
+    # Start CloudWatch Agent with config
+    /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+      -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
+
+  EOT
+  )
 
   tag_specifications {
     resource_type = "instance"
     tags          = local.tags
   }
 }
+
 
 # ---------------------------
 # EBS CSI Driver IAM Role with IRSA
@@ -128,6 +179,7 @@ module "eks" {
       iam_role_additional_policies = {
         AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
         AmazonEBSCSIDriverPolicy     = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+        CloudWatchAgentServerPolicy   = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
       }
 
       tags = local.tags
