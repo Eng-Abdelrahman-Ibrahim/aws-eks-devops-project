@@ -560,7 +560,7 @@ When an alarm is triggered, you'll receive an email with:
   - Network I/O (bytes in/out)
   - Disk read/write operations
 
-  ![Servers Dashboard](docs/servers-dashboards.png)
+  ![Servers Dashboard](docs/servers-dashboard.png)
 
 ### Additional Monitoring
 
