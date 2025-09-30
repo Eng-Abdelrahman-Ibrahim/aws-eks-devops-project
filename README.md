@@ -180,7 +180,7 @@ This script:
 
 **Note the output IPs** - you'll need them for subsequent steps.
 
-### Step 2: Deploy EKS Cluster and Services
+### Step 2: Deploy EKS Cluster and Services (skip this step if you run the script)
 
 Deploy the EKS cluster along with Nexus and Ingress controller:
 
@@ -230,42 +230,48 @@ EOF"
 
 ### Step 4: Configure Jenkins via Ansible
 
-SSH into the Ansible control machine and run the playbook to install Jenkins plugins:
+SSH into the Ansible control machine via bastion host and run the playbook to install Jenkins plugins:
 
 ```bash
 # SSH to Ansible server
-ssh -i <your-key>.pem ec2-user@<ansible-server-ip>
+cd /terraform/servers-setup
+terraform output
+
+#find this output
+
+output "ssh_ansible_via_bastion" {
+  description = "SSH to the private Ansible machine via the bastion host"
+ssh -tt -i ~/.ssh/deployer-one \
+  -o StrictHostKeyChecking=no \
+  -o UserKnownHostsFile=/dev/null \
+  -o ProxyCommand="ssh -i ~/.ssh/deployer-one -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -W %h:%p ec2-user@${aws_instance.bastion.public_ip}" \
+  ec2-user@${aws_instance.ansible_machine.private_ip}
+
+#find ssh to Ansible server command and use it (or use ssm)
 
 # Navigate to ansible directory
-cd /path/to/ansible
+cd ansible
 
 # Run Jenkins plugins installation playbook
-ansible-playbook -i inventory playbooks/install-jenkins-plugins.yml
+ansible-playbook -i inventory/hosts.ini playbooks/install-jenkins-plugins.yml
 ```
-
-This playbook installs essential Jenkins plugins:
-- Git plugin
-- Docker Pipeline
-- Kubernetes plugin
-- Pipeline plugins
-- Maven and NodeJS plugins
 
 ### Step 5: Configure Jenkins
 
 Access Jenkins via SSH tunnel:
 
-```bash
-ssh -L 8080:localhost:8080 -i <your-key>.pem ec2-user@<jenkins-server-ip>
-```
-
-Open http://localhost:8080 in your browser.
+Go to http://[Jenkins-public-IP]:8080
 
 **Initial Setup**:
 
+
+
 1. Get initial admin password:
-   ```bash
-   ssh -i <your-key>.pem ec2-user@<jenkins-server-ip> "sudo cat /var/lib/jenkins/secrets/initialAdminPassword"
-   ```
+   
+```bash
+# SSH to Ansible Server
+ssh -i ec2-user@<jenkins-server-ip> "sudo cat /var/lib/jenkins/secrets/initialAdminPassword"
+```
 
 2. Complete the setup wizard
 
@@ -297,7 +303,7 @@ Access Nexus at http://nexus.local
 
 **Configure Docker Repository**:
 
-1. Navigate to **Server administration and configuration** (gear icon)
+1. Navigate to **Server administration and configuration** 
 
 2. **Enable Docker Bearer Token Realm**:
    - Go to **Security → Realms**
@@ -350,8 +356,6 @@ Access Nexus at http://nexus.local
 
 3. **Pipeline Parameters** (configure in Jenkinsfile):
    - `ENVIRONMENT`: Choice parameter (dev, test, prod)
-   - `ACTION`: Choice parameter (deploy, rollback)
-   - `VERSION`: String parameter (for specific version deployment)
 
 4. **Run the Pipeline**:
    - Click "Build Now" for first run
@@ -477,14 +481,12 @@ To destroy all resources and avoid charges:
 ```bash
 # From project root
 cd scripts
+./manage_infrastructure.sh
+# Select Destroy All
+
+# For extra cleaning up process use
 ./cleanup.sh
 
-# Or manual cleanup
-cd EKS/terraform
-terraform destroy -auto-approve
-
-cd ../../terraform/servers-setup
-terraform destroy -auto-approve
 ```
 
 ## 🤝 Contributing
