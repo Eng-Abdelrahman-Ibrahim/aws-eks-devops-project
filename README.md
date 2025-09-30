@@ -17,6 +17,7 @@ This project implements a robust DevOps pipeline that:
 ## 🏗️ Architecture
 
 ![Architecture Diagram](docs/architecture.png)
+![AWS Diagram](docs/AWS.png)
 
 ### Infrastructure Stack
 
