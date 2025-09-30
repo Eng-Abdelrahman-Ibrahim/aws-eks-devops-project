@@ -53,6 +53,8 @@ A simple Spring Boot + React application that tracks deployment status.
 - Stores deployment history in PostgreSQL
 - Shows which environment was deployed and whether it succeeded or failed
 
+![Web App](docs/app.png)
+
 **Tech Stack**:
 - Backend: Spring Boot 3.x, Java 17, PostgreSQL
 - Frontend: React, Node.js, Nginx
