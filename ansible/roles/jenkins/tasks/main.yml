@@ -69,7 +69,7 @@
 # ========================================
 
 - name: Install Docker (Amazon Linux 2023)
-  ansible.builtin.dnf:  # Use dnf instead of yum
+  ansible.builtin.dnf: 
     name:
       - docker
     state: present

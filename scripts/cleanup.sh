@@ -8,7 +8,7 @@ set -euo pipefail
 CLUSTER_NAME="myapp-eks"
 VPC_NAME_TAG="myapp-eks"
 REGION="us-east-1"
-ACCOUNT_ID="068732175550"
+ACCOUNT_ID="YOUR_AWS_ACCOUNT_ID"  # Replace with your AWS Account ID
 
 # --- Tool Check ---
 if ! command -v jq &> /dev/null; then
